@@ -3,10 +3,7 @@
 
 import * as React from "react";
 import {
-  ScanLine,
   Search,
-  Package,
-  X,
   Plus,
   Minus,
   UserPlus,
@@ -32,12 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -130,16 +121,12 @@ export default function SellPage() {
     })
   }
   
-  const removeFromCart = (productId: string) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
-  };
-  
-  const subtotal = React.useMemo(() => {
+  const total = React.useMemo(() => {
     return cart.reduce((acc, item) => acc + item.sale_price * item.quantity, 0);
   }, [cart]);
 
-  const tax = subtotal * 0.16; // 16% IVA
-  const total = subtotal + tax;
+  const subtotal = total / 1.16;
+  const tax = total - subtotal;
 
   return (
     <div className="grid flex-1 auto-rows-max gap-4 lg:grid-cols-3 xl:grid-cols-5">
@@ -277,21 +264,21 @@ export default function SellPage() {
           </CardContent>
           {cart.length > 0 && (
             <CardFooter className="flex-col items-start gap-4 border-t bg-muted/50 p-4 mt-auto">
-              <div className="w-full space-y-2 text-sm">
-                <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                <div className="w-full space-y-2">
+                    <div className="flex justify-between font-semibold text-lg">
+                        <span>Total</span>
+                        <span>${total.toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Subtotal</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>IVA (16% Incluido)</span>
+                        <span>${tax.toFixed(2)}</span>
+                    </div>
                 </div>
-                <div className="flex justify-between">
-                    <span>IVA (16%)</span>
-                    <span>${tax.toFixed(2)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between font-semibold text-lg">
-                    <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
-                </div>
-              </div>
               <div className="grid grid-cols-2 gap-4 w-full">
                 <Button variant="outline">Pausar Venta</Button>
                 <Button>Procesar Pago</Button>
