@@ -1,3 +1,4 @@
+
 "use client"
 import * as React from "react"
 import {
@@ -29,28 +30,49 @@ type Product = {
   stock: number;
 };
 
+type Category = {
+  id: string;
+  name: string;
+};
+
 export default function ProductsPage() {
   const [products, setProducts] = React.useState<Product[]>([]);
+  const [categories, setCategories] = React.useState<Category[]>([]);
   const [loading, setLoading] = React.useState(true);
   const supabase = createClient();
 
   React.useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchProductsAndCategories = async () => {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      const productsPromise = supabase
         .from('products')
         .select('id, name, status, sale_price, stock')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error al obtener productos:', error);
-      } else if (data) {
-        setProducts(data as Product[]);
+      const categoriesPromise = supabase
+        .from('categories')
+        .select('id, name')
+        .order('name');
+        
+      const [productsResult, categoriesResult] = await Promise.all([productsPromise, categoriesPromise]);
+
+      if (productsResult.error) {
+        console.error('Error al obtener productos:', productsResult.error);
+      } else if (productsResult.data) {
+        setProducts(productsResult.data as Product[]);
       }
+      
+      if (categoriesResult.error) {
+        console.error('Error al obtener categorías:', categoriesResult.error);
+      } else if (categoriesResult.data) {
+        setCategories(categoriesResult.data as Category[]);
+      }
+
       setLoading(false);
     };
 
-    fetchProducts();
+    fetchProductsAndCategories();
   }, []);
 
   const getStatusVariant = (status: Product['status']) => {
@@ -168,8 +190,17 @@ export default function ProductsPage() {
                         <SelectValue placeholder="Seleccionar categoría" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cat1">Categoría 1</SelectItem>
-                        <SelectItem value="cat2">Categoría 2</SelectItem>
+                        {categories.length > 0 ? (
+                          categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>
+                            {loading ? "Cargando..." : "Sin categorías"}
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

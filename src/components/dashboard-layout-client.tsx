@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -14,6 +15,7 @@ import {
   Settings,
   PanelLeft,
   Search,
+  Shapes,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -47,8 +49,6 @@ export default function DashboardLayoutClient({
     console.log('[DashboardLayoutClient] Logging out...');
     await supabase.auth.signOut();
     console.log('[DashboardLayoutClient] Logout complete. Redirecting to login page.');
-    // Pushing to the root will trigger the middleware, which will handle
-    // the user being logged out and ensure they stay on the login page.
     router.push('/');
   };
 
@@ -56,6 +56,7 @@ export default function DashboardLayoutClient({
     { href: "/dashboard", icon: Home, label: "Panel", roles: ['admin', 'employee'] },
     { href: "/dashboard/sell", icon: ShoppingCart, label: "Vender", roles: ['admin', 'employee'] },
     { href: "/dashboard/products", icon: Package, label: "Productos", roles: ['admin', 'employee'] },
+    { href: "/dashboard/categories", icon: Shapes, label: "Categorías", roles: ['admin'] },
     { href: "/dashboard/orders", icon: Truck, label: "Órdenes de Compra", roles: ['admin'] },
     { href: "/dashboard/inventory", icon: Warehouse, label: "Inventario", roles: ['admin', 'employee'] },
     { href: "/dashboard/reports", icon: LineChart, label: "Reportes", roles: ['admin'] },
