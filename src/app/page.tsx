@@ -41,9 +41,8 @@ export default function LoginPage() {
       setLoadingMessage('Iniciar sesión');
     } else {
       setLoadingMessage('¡Éxito! Redirigiendo al panel...');
-      // On successful login, refresh the page.
-      // The middleware will then handle redirecting the user to the dashboard.
-      router.refresh();
+      // On successful login, redirect to the dashboard.
+      router.push('/dashboard');
     }
   };
 
