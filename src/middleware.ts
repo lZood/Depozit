@@ -7,6 +7,9 @@ export async function middleware(request: NextRequest) {
       headers: request.headers,
     },
   })
+  
+  const { pathname } = request.nextUrl;
+  console.log(`[Middleware] Running for path: ${pathname}`);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,61 +20,35 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          // If the cookie is set, update the request cookies and response cookies
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+          request.cookies.set({ name, value, ...options })
+          response = NextResponse.next({ request: { headers: request.headers } })
+          response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: CookieOptions) {
-          // If the cookie is removed, update the request cookies and response cookies
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          request.cookies.set({ name, value: '', ...options })
+          response = NextResponse.next({ request: { headers: request.headers } })
+          response.cookies.set({ name, value: '', ...options })
         },
       },
     }
   )
 
   const { data: { user } } = await supabase.auth.getUser();
-  const { pathname } = request.nextUrl;
+  console.log('[Middleware] User object:', user ? `Logged in as ${user.email}`: 'Not logged in');
 
   // Protect dashboard routes
   if (!user && pathname.startsWith('/dashboard')) {
+    console.log('[Middleware] Path is /dashboard/** and no user. Redirecting to /');
     return NextResponse.redirect(new URL('/', request.url));
   }
   
   // Redirect logged in users from login page to dashboard
   if (user && pathname === '/') {
+    console.log('[Middleware] User is logged in and path is /. Redirecting to /dashboard');
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
-
-  // Refresh session if expired - required for Server Components
-  // https://supabase.com/docs/guides/auth/server-side-rendering#session-refresh
-  await supabase.auth.getUser()
+  
+  console.log('[Middleware] No special redirect conditions met. Continuing...');
 
   return response
 }

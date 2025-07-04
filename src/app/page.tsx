@@ -22,15 +22,18 @@ export default function LoginPage() {
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    console.log("[LoginPage] handleLogin triggered");
     setLoading(true);
     setLoadingMessage('Contactando al servidor...');
+    console.log("[LoginPage] Attempting to sign in with email:", email);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
+      console.error("[LoginPage] Supabase auth error:", error);
       setLoadingMessage('Error de autenticación.');
       toast({
         title: 'Error de autenticación',
@@ -40,7 +43,9 @@ export default function LoginPage() {
       setLoading(false);
       setLoadingMessage('Iniciar sesión');
     } else {
+      console.log("[LoginPage] Supabase auth success:", data);
       setLoadingMessage('¡Éxito! Redirigiendo al panel...');
+      console.log("[LoginPage] Redirecting to /dashboard...");
       // On successful login, redirect to the dashboard.
       router.push('/dashboard');
     }
