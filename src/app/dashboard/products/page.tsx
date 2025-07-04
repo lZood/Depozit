@@ -7,11 +7,12 @@ import {
   PlusCircle,
   Image as ImageIcon,
   Search,
+  Filter,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from "next/image"
@@ -56,6 +57,9 @@ type Product = {
   stock: number;
   image_url: string | null;
   category_id: string | null;
+  categories: {
+    name: string;
+  } | null;
 };
 
 type Category = {
@@ -74,6 +78,7 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = React.useState<Product | null>(null);
   const [activeTab, setActiveTab] = React.useState("all");
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
   const [newCategoryName, setNewCategoryName] = React.useState("");
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
   const supabase = createClient();
@@ -97,7 +102,7 @@ export default function ProductsPage() {
 
   const fetchProducts = React.useCallback(async () => {
     setLoading(true);
-    let query = supabase.from('products').select('*');
+    let query = supabase.from('products').select('*, categories(name)');
 
     if (activeTab !== 'all') {
       query = query.eq('status', activeTab);
@@ -105,6 +110,10 @@ export default function ProductsPage() {
 
     if (searchQuery) {
       query = query.or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`);
+    }
+
+    if (selectedCategories.length > 0) {
+      query = query.in('category_id', selectedCategories);
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
@@ -116,7 +125,7 @@ export default function ProductsPage() {
       setProducts(data as Product[]);
     }
     setLoading(false);
-  }, [supabase, toast, activeTab, searchQuery]);
+  }, [supabase, toast, activeTab, searchQuery, selectedCategories]);
 
 
   const fetchCategories = React.useCallback(async () => {
@@ -353,6 +362,38 @@ export default function ProductsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1">
+                  <Filter className="h-3.5 w-3.5" />
+                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    Filtro
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Filtrar por categoría</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {categories.length > 0 ? (
+                  categories.map((category) => (
+                    <DropdownMenuCheckboxItem
+                      key={category.id}
+                      checked={selectedCategories.includes(category.id)}
+                      onCheckedChange={(checked) => {
+                        const newSelectedCategories = checked
+                          ? [...selectedCategories, category.id]
+                          : selectedCategories.filter((id) => id !== category.id);
+                        setSelectedCategories(newSelectedCategories);
+                      }}
+                    >
+                      {category.name}
+                    </DropdownMenuCheckboxItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>No hay categorías</DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button size="sm" variant="outline" className="h-8 gap-1">
               <File className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
@@ -624,6 +665,7 @@ export default function ProductsPage() {
                     <span className="sr-only">Imagen</span>
                   </TableHead>
                   <TableHead>Nombre</TableHead>
+                  <TableHead className="hidden md:table-cell">Categoría</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="hidden md:table-cell">
                     Precio
@@ -644,6 +686,7 @@ export default function ProductsPage() {
                         <Skeleton className="h-16 w-16 rounded-md" />
                       </TableCell>
                       <TableCell><Skeleton className="h-6 w-48" /></TableCell>
+                      <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                       <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-16" /></TableCell>
                       <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-12" /></TableCell>
@@ -668,6 +711,9 @@ export default function ProductsPage() {
                       <TableCell className="font-medium">
                         {product.name}
                          <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {product.categories?.name || "Sin Categoría"}
                       </TableCell>
                       <TableCell>
                         <Badge variant={getStatusVariant(product.status)}>{getStatusText(product.status)}</Badge>
@@ -702,7 +748,7 @@ export default function ProductsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center h-24">
+                    <TableCell colSpan={7} className="text-center h-24">
                       No se encontraron productos. Comience agregando uno nuevo.
                     </TableCell>
                   </TableRow>
@@ -739,5 +785,3 @@ export default function ProductsPage() {
     </div>
   )
 }
-
-    
