@@ -125,13 +125,13 @@ export default function SellPage() {
                   <span>$40.50</span>
                </div>
                <div className="flex justify-between">
-                  <span>Impuesto (5%)</span>
-                  <span>$2.03</span>
+                  <span>IVA (16%)</span>
+                  <span>$6.48</span>
                </div>
                <Separator />
                <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
-                  <span>$42.53</span>
+                  <span>$46.98</span>
                </div>
              </div>
              <div className="grid grid-cols-2 gap-4 w-full">
