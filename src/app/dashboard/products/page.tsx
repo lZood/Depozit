@@ -45,6 +45,19 @@ const productFormSchema = z.object({
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
+const defaultFormValues: ProductFormValues = {
+  name: "",
+  sku: "",
+  barcode: "",
+  description: "",
+  category_id: "",
+  cost_price: 0,
+  sale_price: 0,
+  stock: 0,
+  status: 'active',
+  image_file: undefined,
+};
+
 type Product = {
   id: string;
   name: string;
@@ -86,18 +99,7 @@ export default function ProductsPage() {
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
-    defaultValues: {
-      name: "",
-      sku: "",
-      barcode: "",
-      description: "",
-      category_id: "",
-      cost_price: 0,
-      sale_price: 0,
-      stock: 0,
-      status: 'active',
-      image_file: undefined,
-    },
+    defaultValues: defaultFormValues,
   });
 
   const fetchProducts = React.useCallback(async () => {
@@ -149,14 +151,6 @@ export default function ProductsPage() {
   React.useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
-  
-  React.useEffect(() => {
-    if (!productDialogOpen) {
-      setEditingProduct(null);
-      form.reset();
-      setImagePreview(null);
-    }
-  }, [productDialogOpen, form]);
 
   const handleAddCategory = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -402,7 +396,11 @@ export default function ProductsPage() {
             </Button>
             <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="h-8 gap-1" onClick={() => setEditingProduct(null)}>
+                <Button size="sm" className="h-8 gap-1" onClick={() => {
+                  setEditingProduct(null);
+                  form.reset(defaultFormValues);
+                  setImagePreview(null);
+                }}>
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                     Agregar Producto
