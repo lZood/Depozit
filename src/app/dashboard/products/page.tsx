@@ -28,6 +28,20 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
+const productFormSchema = z.object({
+  name: z.string().min(1, "El nombre es obligatorio."),
+  sku: z.string().min(1, "El SKU es obligatorio."),
+  barcode: z.string().optional(),
+  description: z.string().optional(),
+  category_id: z.string().optional(),
+  cost_price: z.coerce.number().min(0, "El precio debe ser positivo.").optional(),
+  sale_price: z.coerce.number().min(0.01, "El precio de venta es obligatorio y debe ser mayor a 0."),
+  stock: z.coerce.number().int("Las existencias deben ser un número entero.").min(0, "Las existencias no pueden ser negativas."),
+  image_file: z.any().optional(),
+});
+
+type ProductFormValues = z.infer<typeof productFormSchema>;
+
 type Product = {
   id: string;
   name: string;
@@ -43,20 +57,6 @@ type Category = {
 };
 
 export default function ProductsPage() {
-  const productFormSchema = z.object({
-    name: z.string().min(1, "El nombre es obligatorio."),
-    sku: z.string().min(1, "El SKU es obligatorio."),
-    barcode: z.string().optional(),
-    description: z.string().optional(),
-    category_id: z.string().optional(),
-    cost_price: z.coerce.number().min(0, "El precio debe ser positivo.").optional(),
-    sale_price: z.coerce.number().min(0.01, "El precio de venta es obligatorio y debe ser mayor a 0."),
-    stock: z.coerce.number().int("Las existencias deben ser un número entero.").min(0, "Las existencias no pueden ser negativas."),
-    image_file: z.instanceof(File).optional(),
-  });
-  
-  type ProductFormValues = z.infer<typeof productFormSchema>;
-
   const [products, setProducts] = React.useState<Product[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -157,7 +157,7 @@ export default function ProductsPage() {
     let imageUrl: string | null = null;
 
     // 1. Handle image upload if a file is provided
-    if (values.image_file) {
+    if (values.image_file && values.image_file instanceof File) {
       const file = values.image_file;
       const filePath = `public/${Date.now()}-${file.name}`;
       
