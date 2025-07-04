@@ -235,5 +235,7 @@ drop policy if exists "Allow delete for admins on product images" on storage.obj
 
 create policy "Allow public read on product images" on storage.objects for select using ( bucket_id = 'product-images' );
 create policy "Allow insert for authenticated users on product images" on storage.objects for insert to authenticated with check ( bucket_id = 'product-images' );
-create policy "Allow update for admins on product images" on storage.objects for update to authenticated using ( bucket_id = 'product-images' AND public.get_my_role() = 'admin' ) with check ( bucket_id = 'product-images' AND public.get_my_role() = 'admin' );
+create policy "Allow update for admins on product images" on storage.objects for update to authenticated using ( bucket_id = 'product-images' AND public.get_my_role() = 'admin' );
 create policy "Allow delete for admins on product images" on storage.objects for delete to authenticated using ( bucket_id = 'product-images' AND public.get_my_role() = 'admin' );
+
+    
