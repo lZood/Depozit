@@ -10,6 +10,8 @@ export async function middleware(request: NextRequest) {
   
   const { pathname } = request.nextUrl;
   console.log(`[Middleware] Running for path: ${pathname}`);
+  console.log('[Middleware] Request cookies received:', request.cookies.getAll().map(c => c.name));
+
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,7 +36,7 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser();
-  console.log('[Middleware] User object:', user ? `Logged in as ${user.email}`: 'Not logged in');
+  console.log('[Middleware] User object from Supabase:', user ? `Logged in as ${user.email}`: 'Not logged in. This is expected in an iframe after login.');
 
   // Protect dashboard routes
   if (!user && pathname.startsWith('/dashboard')) {
