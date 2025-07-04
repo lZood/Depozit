@@ -22,6 +22,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createClient } from "@/lib/supabase/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+
+const productFormSchema = z.object({
+  name: z.string().min(1, "El nombre es obligatorio."),
+  sku: z.string().optional(),
+  barcode: z.string().optional(),
+  description: z.string().optional(),
+  category_id: z.string().optional(),
+  cost_price: z.coerce.number().min(0, "El precio debe ser positivo.").optional(),
+  sale_price: z.coerce.number().min(0.01, "El precio de venta es obligatorio y debe ser mayor a 0."),
+  stock: z.coerce.number().int("Las existencias deben ser un número entero.").min(0, "Las existencias no pueden ser negativas."),
+});
+
+type ProductFormValues = z.infer<typeof productFormSchema>;
+
 
 type Product = {
   id: string;
@@ -41,9 +59,38 @@ export default function ProductsPage() {
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = React.useState(false);
+  const [addProductDialogOpen, setAddProductDialogOpen] = React.useState(false);
   const [newCategoryName, setNewCategoryName] = React.useState("");
   const supabase = createClient();
   const { toast } = useToast();
+
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: {
+      name: "",
+      sku: "",
+      barcode: "",
+      description: "",
+      category_id: "",
+      cost_price: 0,
+      sale_price: undefined,
+      stock: 0,
+    },
+  });
+
+  const fetchProducts = React.useCallback(async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, name, status, sale_price, stock')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error al obtener productos:', error);
+      toast({ title: "Error", description: "No se pudieron cargar los productos.", variant: "destructive" });
+    } else if (data) {
+      setProducts(data as Product[]);
+    }
+  }, [supabase, toast]);
 
   const fetchCategories = React.useCallback(async () => {
     const { data, error } = await supabase
@@ -60,19 +107,6 @@ export default function ProductsPage() {
   }, [supabase, toast]);
 
   React.useEffect(() => {
-    const fetchProducts = async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, status, sale_price, stock')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error al obtener productos:', error);
-      } else if (data) {
-        setProducts(data as Product[]);
-      }
-    }
-
     const loadData = async () => {
         setLoading(true);
         await Promise.all([fetchProducts(), fetchCategories()]);
@@ -80,7 +114,13 @@ export default function ProductsPage() {
     }
     
     loadData();
-  }, [fetchCategories, supabase]);
+  }, [fetchProducts, fetchCategories]);
+  
+  React.useEffect(() => {
+    if (!addProductDialogOpen) {
+      form.reset();
+    }
+  }, [addProductDialogOpen, form]);
 
   const handleAddCategory = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -107,6 +147,38 @@ export default function ProductsPage() {
       await fetchCategories();
     }
   };
+
+  async function onProductSubmit(values: ProductFormValues) {
+    const payload = {
+      name: values.name,
+      sku: values.sku || null,
+      barcode: values.barcode || null,
+      description: values.description || null,
+      category_id: values.category_id || null,
+      cost_price: values.cost_price || 0,
+      sale_price: values.sale_price,
+      stock: values.stock,
+      status: 'active'
+    };
+
+    const { error } = await supabase.from('products').insert([payload]);
+
+    if (error) {
+      toast({
+        title: "Error al guardar el producto",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Producto guardado",
+        description: "El nuevo producto ha sido agregado a tu inventario.",
+      });
+      setAddProductDialogOpen(false);
+      await fetchProducts();
+    }
+  }
+
 
   const getStatusVariant = (status: Product['status']) => {
     switch (status) {
@@ -175,7 +247,7 @@ export default function ProductsPage() {
                 Exportar
               </span>
             </Button>
-            <Dialog>
+            <Dialog open={addProductDialogOpen} onOpenChange={setAddProductDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="h-8 gap-1">
                   <PlusCircle className="h-3.5 w-3.5" />
@@ -191,97 +263,169 @@ export default function ProductsPage() {
                     Agregue un nuevo producto a su inventario. Haga clic en guardar cuando haya terminado.
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">
-                      Nombre
-                    </Label>
-                    <Input id="name" placeholder="Nombre del Producto" className="col-span-3" />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="sku" className="text-right">
-                      SKU
-                    </Label>
-                    <Input id="sku" placeholder="SKU-12345" className="col-span-3" />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="barcode" className="text-right">
-                      Código de Barras
-                    </Label>
-                    <Input id="barcode" placeholder="123456789012" className="col-span-3" />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="description" className="text-right">
-                      Descripción
-                    </Label>
-                    <Textarea id="description" placeholder="Descripción del producto..." className="col-span-3" />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right">Categoría</Label>
-                    <div className="col-span-3 flex items-center gap-2">
-                      <Select>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Seleccionar categoría" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.length > 0 ? (
-                            categories.map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                {category.name}
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="loading" disabled>
-                              {loading ? "Cargando..." : "Sin categorías"}
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <Dialog open={addCategoryDialogOpen} onOpenChange={setAddCategoryDialogOpen}>
-                        <DialogTrigger asChild>
-                           <Button type="button" variant="outline" size="icon" className="shrink-0">
-                              <PlusCircle className="h-4 w-4" />
-                              <span className="sr-only">Agregar Nueva Categoría</span>
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <form onSubmit={handleAddCategory}>
-                              <DialogHeader>
-                                  <DialogTitle>Agregar Nueva Categoría</DialogTitle>
-                                  <DialogDescription>
-                                      Ingrese el nombre para la nueva categoría.
-                                  </DialogDescription>
-                              </DialogHeader>
-                              <div className="grid gap-4 py-4">
-                                  <Label htmlFor="new-category-name">Nombre</Label>
-                                  <Input 
-                                      id="new-category-name" 
-                                      value={newCategoryName}
-                                      onChange={(e) => setNewCategoryName(e.target.value)}
-                                      placeholder="Ej. Bebidas"
-                                      required
-                                  />
-                              </div>
-                              <DialogFooter>
-                                  <Button type="submit">Guardar Categoría</Button>
-                              </DialogFooter>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="cost" className="text-right">Precio de Costo</Label>
-                    <Input id="cost" type="number" placeholder="10.00" className="col-span-3" />
-                  </div>
-                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="sale" className="text-right">Precio de Venta</Label>
-                    <Input id="sale" type="number" placeholder="20.00" className="col-span-3" />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Guardar producto</Button>
-                </DialogFooter>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onProductSubmit)} className="grid gap-4 py-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem className="grid grid-cols-4 items-center gap-4">
+                          <FormLabel className="text-right">Nombre</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nombre del Producto" className="col-span-3" {...field} />
+                          </FormControl>
+                          <FormMessage className="col-span-4 text-right" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="sku"
+                      render={({ field }) => (
+                        <FormItem className="grid grid-cols-4 items-center gap-4">
+                           <FormLabel className="text-right">SKU</FormLabel>
+                           <FormControl>
+                              <Input placeholder="SKU-12345" className="col-span-3" {...field} />
+                           </FormControl>
+                           <FormMessage className="col-span-4 text-right" />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={form.control}
+                      name="barcode"
+                      render={({ field }) => (
+                        <FormItem className="grid grid-cols-4 items-center gap-4">
+                          <FormLabel className="text-right">Código de Barras</FormLabel>
+                          <FormControl>
+                            <Input placeholder="123456789012" className="col-span-3" {...field} />
+                          </FormControl>
+                           <FormMessage className="col-span-4 text-right" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem className="grid grid-cols-4 items-center gap-4">
+                           <FormLabel className="text-right">Descripción</FormLabel>
+                          <FormControl>
+                            <Textarea placeholder="Descripción del producto..." className="col-span-3" {...field} />
+                          </FormControl>
+                           <FormMessage className="col-span-4 text-right" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="category_id"
+                      render={({ field }) => (
+                        <FormItem className="grid grid-cols-4 items-center gap-4">
+                          <FormLabel className="text-right">Categoría</FormLabel>
+                           <div className="col-span-3 flex items-center gap-2">
+                             <Select onValueChange={field.onChange} defaultValue={field.value}>
+                               <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleccionar categoría" />
+                                </SelectTrigger>
+                               </FormControl>
+                                <SelectContent>
+                                  {categories.length > 0 ? (
+                                    categories.map((category) => (
+                                      <SelectItem key={category.id} value={category.id}>
+                                        {category.name}
+                                      </SelectItem>
+                                    ))
+                                  ) : (
+                                    <SelectItem value="loading" disabled>
+                                      {loading ? "Cargando..." : "Sin categorías"}
+                                    </SelectItem>
+                                  )}
+                                </SelectContent>
+                             </Select>
+                             <Dialog open={addCategoryDialogOpen} onOpenChange={setAddCategoryDialogOpen}>
+                               <DialogTrigger asChild>
+                                  <Button type="button" variant="outline" size="icon" className="shrink-0">
+                                     <PlusCircle className="h-4 w-4" />
+                                     <span className="sr-only">Agregar Nueva Categoría</span>
+                                 </Button>
+                               </DialogTrigger>
+                               <DialogContent>
+                                 <form onSubmit={handleAddCategory}>
+                                     <DialogHeader>
+                                         <DialogTitle>Agregar Nueva Categoría</DialogTitle>
+                                         <DialogDescription>
+                                             Ingrese el nombre para la nueva categoría.
+                                         </DialogDescription>
+                                     </DialogHeader>
+                                     <div className="grid gap-4 py-4">
+                                         <Label htmlFor="new-category-name">Nombre</Label>
+                                         <Input 
+                                             id="new-category-name" 
+                                             value={newCategoryName}
+                                             onChange={(e) => setNewCategoryName(e.target.value)}
+                                             placeholder="Ej. Bebidas"
+                                             required
+                                         />
+                                     </div>
+                                     <DialogFooter>
+                                         <Button type="submit">Guardar Categoría</Button>
+                                     </DialogFooter>
+                                 </form>
+                               </DialogContent>
+                             </Dialog>
+                           </div>
+                           <FormMessage className="col-span-4 text-right" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="stock"
+                      render={({ field }) => (
+                        <FormItem className="grid grid-cols-4 items-center gap-4">
+                           <FormLabel className="text-right">Existencias Iniciales</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="0" className="col-span-3" {...field} />
+                          </FormControl>
+                           <FormMessage className="col-span-4 text-right" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="cost_price"
+                      render={({ field }) => (
+                        <FormItem className="grid grid-cols-4 items-center gap-4">
+                           <FormLabel className="text-right">Precio de Costo</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="10.00" className="col-span-3" {...field} />
+                          </FormControl>
+                           <FormMessage className="col-span-4 text-right" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="sale_price"
+                      render={({ field }) => (
+                        <FormItem className="grid grid-cols-4 items-center gap-4">
+                           <FormLabel className="text-right">Precio de Venta</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="20.00" className="col-span-3" {...field} />
+                          </FormControl>
+                           <FormMessage className="col-span-4 text-right" />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                      <Button type="submit" disabled={form.formState.isSubmitting}>
+                        {form.formState.isSubmitting ? "Guardando..." : "Guardar producto"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
               </DialogContent>
             </Dialog>
           </div>
