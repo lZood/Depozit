@@ -4,8 +4,12 @@
 import * as React from "react";
 import {
   Search,
-  PackagePlus,
+  ArrowRightLeft,
 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,7 +41,23 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import Image from "next/image";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 
 type Product = {
   id: string;
@@ -50,17 +70,38 @@ type Product = {
   } | null;
 };
 
+const adjustmentFormSchema = z.object({
+  type: z.enum(["addition", "subtraction"], { required_error: "Debe seleccionar un tipo de movimiento." }),
+  quantity: z.coerce.number().int("La cantidad debe ser un número entero.").positive("La cantidad debe ser un número positivo."),
+  reason: z.string().min(1, "Debe seleccionar un motivo."),
+}).refine(data => data.quantity > 0, {
+  message: "La cantidad debe ser mayor que cero.",
+  path: ["quantity"],
+});
+
+type AdjustmentFormValues = z.infer<typeof adjustmentFormSchema>;
+
 export default function InventoryPage() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = React.useState<Product[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
-  const [quantityToAdd, setQuantityToAdd] = React.useState(1);
+  const [dialogState, setDialogState] = React.useState<{ open: boolean; product: Product | null }>({
+    open: false,
+    product: null,
+  });
 
   const supabase = createClient();
   const { toast } = useToast();
+
+  const form = useForm<AdjustmentFormValues>({
+    resolver: zodResolver(adjustmentFormSchema),
+    defaultValues: {
+      type: "addition",
+      quantity: 1,
+      reason: "Compra a proveedor",
+    },
+  });
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -95,54 +136,64 @@ export default function InventoryPage() {
     setFilteredProducts(results);
   }, [searchQuery, products]);
 
-  const handleAddStockClick = (product: Product) => {
-    setSelectedProduct(product);
-    setQuantityToAdd(1);
-    setDialogOpen(true);
+  const handleAdjustStockClick = (product: Product) => {
+    form.reset();
+    setDialogState({ open: true, product });
   };
 
-  const handleSubmitStock = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!selectedProduct || quantityToAdd <= 0) {
-      toast({
-        title: "Error",
-        description: "Por favor, seleccione un producto e ingrese una cantidad válida.",
-        variant: "destructive",
+  const onDialogClose = (open: boolean) => {
+    if (!open) {
+      setDialogState({ open: false, product: null });
+      form.reset();
+    }
+  }
+
+  async function onSubmit(values: AdjustmentFormValues) {
+    const { product } = dialogState;
+    if (!product) return;
+
+    const quantityChange = values.type === 'addition' ? values.quantity : -values.quantity;
+
+    if (values.type === 'subtraction' && product.stock < values.quantity) {
+      form.setError("quantity", {
+        type: "manual",
+        message: `No puedes restar más de las existencias actuales (${product.stock}).`,
       });
       return;
     }
 
-    const newStock = selectedProduct.stock + Number(quantityToAdd);
+    const { error } = await supabase.rpc('handle_stock_adjustment', {
+      p_product_id: product.id,
+      p_quantity_change: quantityChange,
+      p_reason: values.reason,
+    });
 
-    const { error } = await supabase
-      .from("products")
-      .update({ stock: newStock })
-      .eq("id", selectedProduct.id);
 
     if (error) {
       toast({
-        title: "Error al añadir stock",
+        title: "Error al ajustar stock",
         description: error.message,
         variant: "destructive",
       });
     } else {
+      const newStock = product.stock + quantityChange;
       toast({
         title: "Éxito",
-        description: `Stock para ${selectedProduct.name} actualizado a ${newStock}.`,
+        description: `Stock para ${product.name} actualizado a ${newStock}.`,
       });
-      setDialogOpen(false);
-      // Actualización optimista del estado para una mejor UX
+      setDialogState({ open: false, product: null });
+      
       const updatedProducts = products.map(p =>
-        p.id === selectedProduct.id ? { ...p, stock: newStock } : p
+        p.id === product.id ? { ...p, stock: newStock } : p
       );
       setProducts(updatedProducts);
     }
-  };
+  }
   
-  const getStockBadgeVariant = (stock: number) => {
+  const getStockBadgeVariant = (stock: number): 'destructive' | 'secondary' | 'outline' => {
     if (stock === 0) return "destructive";
-    if (stock < 10) return "secondary"; // Se usa 'secondary' para un estado de 'advertencia' (amarillo/gris claro)
-    return "outline"; // Se usa 'outline' para un estado normal
+    if (stock < 10) return "secondary"; 
+    return "outline"; 
   }
 
   return (
@@ -151,7 +202,7 @@ export default function InventoryPage() {
         <CardHeader>
           <CardTitle>Inventario</CardTitle>
           <CardDescription>
-            Gestiona las existencias de tus productos. Añade nuevas entradas para mantener tu inventario actualizado.
+            Gestiona las existencias de tus productos. Realiza entradas y salidas para mantener tu inventario actualizado.
           </CardDescription>
           <div className="pt-4">
              <div className="relative">
@@ -222,9 +273,9 @@ export default function InventoryPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" onClick={() => handleAddStockClick(product)}>
-                        <PackagePlus className="mr-2" />
-                        Añadir Stock
+                      <Button size="sm" onClick={() => handleAdjustStockClick(product)}>
+                        <ArrowRightLeft className="mr-2" />
+                        Ajustar Stock
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -241,40 +292,97 @@ export default function InventoryPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <form onSubmit={handleSubmitStock}>
-            <DialogHeader>
-              <DialogTitle>Añadir Stock a {selectedProduct?.name}</DialogTitle>
-              <DialogDescription>
-                Ingresa la cantidad de unidades que deseas agregar al inventario. Las existencias actuales son {selectedProduct?.stock}.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="quantity" className="text-right">
-                  Cantidad
-                </Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  value={quantityToAdd}
-                  onChange={(e) => setQuantityToAdd(parseInt(e.target.value, 10) || 0)}
-                  className="col-span-3"
-                  min="1"
-                  required
-                  autoFocus
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-              <Button type="submit">Guardar Entrada</Button>
-            </DialogFooter>
-          </form>
+      <Dialog open={dialogState.open} onOpenChange={onDialogClose}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>Ajustar Stock de {dialogState.product?.name}</DialogTitle>
+            <DialogDescription>
+              Selecciona el tipo de movimiento, la cantidad y el motivo. Las existencias actuales son {dialogState.product?.stock}.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6 py-4">
+               <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Tipo de Movimiento</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex space-x-4"
+                      >
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="addition" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Entrada</FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="subtraction" />
+                          </FormControl>
+                          <FormLabel className="font-normal">Salida</FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cantidad</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0" min="1" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="reason"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Motivo</FormLabel>
+                     <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un motivo para el ajuste" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Compra a proveedor">Compra a proveedor</SelectItem>
+                        <SelectItem value="Ajuste por caducidad">Ajuste por caducidad</SelectItem>
+                        <SelectItem value="Producto dañado">Producto dañado</SelectItem>
+                        <SelectItem value="Venta externa">Venta externa</predefined></SelectItem>
+                        <SelectItem value="Devolución de cliente">Devolución de cliente</SelectItem>
+                        <SelectItem value="Corrección de inventario">Corrección de inventario</SelectItem>
+                        <SelectItem value="Otro">Otro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => onDialogClose(false)}>Cancelar</Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Ajuste'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-
