@@ -34,12 +34,12 @@ export default function LoginPage() {
         description: error.message || 'No se pudo iniciar sesión. Verifique sus credenciales.',
         variant: 'destructive',
       });
+      setLoading(false);
     } else {
-      router.push('/dashboard');
-      router.refresh(); // To re-fetch server components with the new auth state
+      // On successful login, refresh the page.
+      // The middleware will then handle redirecting the user to the dashboard.
+      router.refresh();
     }
-
-    setLoading(false);
   };
 
   return (
