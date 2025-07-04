@@ -363,7 +363,7 @@ export default function InventoryPage() {
                         <SelectItem value="Compra a proveedor">Compra a proveedor</SelectItem>
                         <SelectItem value="Ajuste por caducidad">Ajuste por caducidad</SelectItem>
                         <SelectItem value="Producto dañado">Producto dañado</SelectItem>
-                        <SelectItem value="Venta externa">Venta externa</predefined></SelectItem>
+                        <SelectItem value="Venta externa">Venta externa</SelectItem>
                         <SelectItem value="Devolución de cliente">Devolución de cliente</SelectItem>
                         <SelectItem value="Corrección de inventario">Corrección de inventario</SelectItem>
                         <SelectItem value="Otro">Otro</SelectItem>
