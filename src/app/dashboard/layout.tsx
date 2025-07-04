@@ -21,7 +21,7 @@ export default async function DashboardLayout({
     .from("profiles")
     .select("role")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   // Default to 'employee' if profile doesn't exist for any reason
   const userRole = profile?.role || 'employee';
