@@ -1,8 +1,14 @@
 -- Habilitar la extensión pgcrypto si no está habilitada
 create extension if not exists "pgcrypto" with schema "public";
 
--- Crear un tipo personalizado para los roles de la aplicación
-create type public.app_role as enum ('admin', 'employee');
+-- Crear un tipo personalizado para los roles de la aplicación de forma segura
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+        CREATE TYPE public.app_role AS ENUM ('admin', 'employee');
+    END IF;
+END
+$$;
 
 -- Tabla de perfiles de usuario para almacenar roles
 create table if not exists public.profiles (
@@ -169,6 +175,18 @@ drop policy if exists "Allow all authenticated users" on public.sales;
 drop policy if exists "Allow all authenticated users" on public.sale_items;
 drop policy if exists "Allow all authenticated users" on public.purchase_orders;
 drop policy if exists "Allow all authenticated users" on public.purchase_order_items;
+drop policy if exists "Allow individual read access" on public.profiles;
+drop policy if exists "Allow individual update access" on public.profiles;
+drop policy if exists "Allow read access to everyone" on public.products;
+drop policy if exists "Allow full access for admins" on public.products;
+drop policy if exists "Allow read access to everyone" on public.categories;
+drop policy if exists "Allow full access for admins on categories" on public.categories;
+drop policy if exists "Allow full access for admins on suppliers" on public.suppliers;
+drop policy if exists "Allow all access for authenticated users on customers" on public.customers;
+drop policy if exists "Allow all access for authenticated users on sales" on public.sales;
+drop policy if exists "Allow all access for authenticated users on sale_items" on public.sale_items;
+drop policy if exists "Allow full access for admins on purchase_orders" on public.purchase_orders;
+drop policy if exists "Allow full access for admins on purchase_order_items" on public.purchase_order_items;
 
 
 -- NUEVAS POLÍTICAS BASADAS EN ROLES
