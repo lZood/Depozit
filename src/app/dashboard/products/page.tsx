@@ -3,19 +3,20 @@
 import * as React from "react"
 import {
   File,
-  ListFilter,
   MoreHorizontal,
   PlusCircle,
   Image as ImageIcon,
+  Search,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -37,6 +38,7 @@ const productFormSchema = z.object({
   cost_price: z.coerce.number().min(0, "El precio debe ser positivo.").optional(),
   sale_price: z.coerce.number().min(0.01, "El precio de venta es obligatorio y debe ser mayor a 0."),
   stock: z.coerce.number().int("Las existencias deben ser un número entero.").min(0, "Las existencias no pueden ser negativas."),
+  status: z.enum(['active', 'draft', 'archived'], { required_error: "El estado es obligatorio." }),
   image_file: z.any().optional(),
 });
 
@@ -45,10 +47,15 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 type Product = {
   id: string;
   name: string;
+  description: string | null;
+  sku: string | null;
+  barcode: string | null;
   status: 'active' | 'draft' | 'archived';
   sale_price: number;
+  cost_price: number | null;
   stock: number;
   image_url: string | null;
+  category_id: string | null;
 };
 
 type Category = {
@@ -61,7 +68,12 @@ export default function ProductsPage() {
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = React.useState(false);
-  const [addProductDialogOpen, setAddProductDialogOpen] = React.useState(false);
+  const [productDialogOpen, setProductDialogOpen] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [productToDelete, setProductToDelete] = React.useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = React.useState<Product | null>(null);
+  const [activeTab, setActiveTab] = React.useState("all");
+  const [searchQuery, setSearchQuery] = React.useState("");
   const [newCategoryName, setNewCategoryName] = React.useState("");
   const [imagePreview, setImagePreview] = React.useState<string | null>(null);
   const supabase = createClient();
@@ -78,15 +90,24 @@ export default function ProductsPage() {
       cost_price: 0,
       sale_price: 0,
       stock: 0,
+      status: 'active',
       image_file: undefined,
     },
   });
 
   const fetchProducts = React.useCallback(async () => {
-    const { data, error } = await supabase
-      .from('products')
-      .select('id, name, status, sale_price, stock, image_url')
-      .order('created_at', { ascending: false });
+    setLoading(true);
+    let query = supabase.from('products').select('*');
+
+    if (activeTab !== 'all') {
+      query = query.eq('status', activeTab);
+    }
+
+    if (searchQuery) {
+      query = query.or(`name.ilike.%${searchQuery}%,sku.ilike.%${searchQuery}%`);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error al obtener productos:', error);
@@ -94,7 +115,9 @@ export default function ProductsPage() {
     } else if (data) {
       setProducts(data as Product[]);
     }
-  }, [supabase, toast]);
+    setLoading(false);
+  }, [supabase, toast, activeTab, searchQuery]);
+
 
   const fetchCategories = React.useCallback(async () => {
     const { data, error } = await supabase
@@ -111,21 +134,20 @@ export default function ProductsPage() {
   }, [supabase, toast]);
 
   React.useEffect(() => {
-    const loadData = async () => {
-        setLoading(true);
-        await Promise.all([fetchProducts(), fetchCategories()]);
-        setLoading(false);
-    }
-    
-    loadData();
-  }, [fetchProducts, fetchCategories]);
+    fetchProducts();
+  }, [fetchProducts]);
+
+  React.useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
   
   React.useEffect(() => {
-    if (!addProductDialogOpen) {
+    if (!productDialogOpen) {
+      setEditingProduct(null);
       form.reset();
       setImagePreview(null);
     }
-  }, [addProductDialogOpen, form]);
+  }, [productDialogOpen, form]);
 
   const handleAddCategory = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -154,9 +176,10 @@ export default function ProductsPage() {
   };
 
   async function onProductSubmit(values: ProductFormValues) {
-    let imageUrl: string | null = null;
-
-    // 1. Handle image upload if a file is provided
+    let finalImageUrl: string | null = editingProduct?.image_url || null;
+    let oldImagePath: string | null = null;
+    
+    // 1. Handle image upload if a new file is provided
     if (values.image_file && values.image_file instanceof window.File) {
       const file = values.image_file;
       const filePath = `${Date.now()}-${file.name}`;
@@ -166,22 +189,20 @@ export default function ProductsPage() {
         .upload(filePath, file);
 
       if (uploadError) {
-        toast({
-          title: "Error al subir la imagen",
-          description: uploadError.message,
-          variant: "destructive",
-        });
+        toast({ title: "Error al subir la imagen", description: uploadError.message, variant: "destructive" });
         return;
       }
       
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath);
-        
-      imageUrl = publicUrl;
+      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(filePath);
+      finalImageUrl = publicUrl;
+
+      // If we are editing and there was an old image, mark it for deletion
+      if (editingProduct?.image_url) {
+        oldImagePath = editingProduct.image_url.split('/').pop()!;
+      }
     }
 
-    // 2. Prepare product data for insertion
+    // 2. Prepare product data for upsert
     const payload = {
       name: values.name,
       sku: values.sku,
@@ -191,33 +212,97 @@ export default function ProductsPage() {
       cost_price: values.cost_price || 0,
       sale_price: values.sale_price,
       stock: values.stock,
-      status: 'active',
-      image_url: imageUrl,
+      status: values.status,
+      image_url: finalImageUrl,
     };
 
-    // 3. Insert product into the database
-    const { error } = await supabase.from('products').insert([payload]);
+    // 3. Insert or Update product in the database
+    let error;
+    if (editingProduct) {
+        const { error: updateError } = await supabase.from('products').update(payload).eq('id', editingProduct.id);
+        error = updateError;
+    } else {
+        const { error: insertError } = await supabase.from('products').insert([payload]);
+        error = insertError;
+    }
 
     if (error) {
       toast({
-        title: "Error al guardar el producto",
+        title: `Error al guardar el producto`,
         description: error.message,
         variant: "destructive",
       });
-       // Optional: Attempt to delete the orphaned image if product insertion fails
-       if (imageUrl) {
-         const filePathToDelete = imageUrl.split('/').pop();
-         if(filePathToDelete) await supabase.storage.from('product-images').remove([filePathToDelete]);
+       // If upsert failed but we uploaded a new image, delete it
+       if (finalImageUrl && !editingProduct?.image_url) {
+         const newFilePath = finalImageUrl.split('/').pop();
+         if(newFilePath) await supabase.storage.from('product-images').remove([newFilePath]);
        }
     } else {
       toast({
-        title: "Producto guardado",
-        description: "El nuevo producto ha sido agregado a tu inventario.",
+        title: `Producto ${editingProduct ? 'actualizado' : 'guardado'}`,
+        description: `El producto ha sido ${editingProduct ? 'actualizado' : 'agregado'} con éxito.`,
       });
-      setAddProductDialogOpen(false);
+
+      // If update was successful and we have an old image path, delete it
+      if (oldImagePath) {
+        await supabase.storage.from('product-images').remove([oldImagePath]);
+      }
+      
+      setProductDialogOpen(false);
       await fetchProducts();
     }
   }
+
+  const handleEditClick = (product: Product) => {
+    setEditingProduct(product);
+    form.reset({
+      ...product,
+      cost_price: product.cost_price ?? 0,
+      description: product.description ?? "",
+      barcode: product.barcode ?? "",
+      category_id: product.category_id ?? "",
+      image_file: undefined,
+    });
+    setImagePreview(product.image_url);
+    setProductDialogOpen(true);
+  };
+  
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+  
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", productToDelete.id);
+  
+    if (error) {
+      toast({
+        title: "Error al eliminar",
+        description: "No se pudo eliminar el producto.",
+        variant: "destructive",
+      });
+    } else {
+      // If product is deleted, also delete its image from storage
+      if (productToDelete.image_url) {
+        const imagePath = productToDelete.image_url.split("/").pop();
+        if (imagePath) {
+          await supabase.storage.from("product-images").remove([imagePath]);
+        }
+      }
+      toast({
+        title: "Éxito",
+        description: "Producto eliminado correctamente.",
+      });
+      await fetchProducts();
+    }
+    setDeleteDialogOpen(false);
+    setProductToDelete(null);
+  };
 
   const getStatusVariant = (status: Product['status']) => {
     switch (status) {
@@ -247,7 +332,7 @@ export default function ProductsPage() {
 
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
-      <Tabs defaultValue="all">
+      <Tabs defaultValue="all" onValueChange={(value) => setActiveTab(value)}>
         <div className="flex items-center">
           <TabsList>
             <TabsTrigger value="all">Todos</TabsTrigger>
@@ -258,36 +343,25 @@ export default function ProductsPage() {
             </TabsTrigger>
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-1">
-                  <ListFilter className="h-3.5 w-3.5" />
-                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Filtrar
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem checked>
-                  Activo
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem>Borrador</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem>
-                  Archivado
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar por nombre o SKU..."
+                className="pl-8 sm:w-[300px]"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             <Button size="sm" variant="outline" className="h-8 gap-1">
               <File className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                 Exportar
               </span>
             </Button>
-            <Dialog open={addProductDialogOpen} onOpenChange={setAddProductDialogOpen}>
+            <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="h-8 gap-1">
+                <Button size="sm" className="h-8 gap-1" onClick={() => setEditingProduct(null)}>
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                     Agregar Producto
@@ -296,13 +370,13 @@ export default function ProductsPage() {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[625px]">
                 <DialogHeader>
-                  <DialogTitle>Agregar Producto</DialogTitle>
+                  <DialogTitle>{editingProduct ? "Editar Producto" : "Agregar Producto"}</DialogTitle>
                   <DialogDescription>
-                    Agregue un nuevo producto a su inventario. Haga clic en guardar cuando haya terminado.
+                    {editingProduct ? "Modifique los detalles de su producto." : "Agregue un nuevo producto a su inventario."}
                   </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onProductSubmit)} className="grid gap-4 py-4">
+                  <form onSubmit={form.handleSubmit(onProductSubmit)} className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
                      <FormField
                         control={form.control}
                         name="image_file"
@@ -406,7 +480,7 @@ export default function ProductsPage() {
                         <FormItem className="grid grid-cols-4 items-center gap-4">
                           <FormLabel className="text-right">Categoría</FormLabel>
                            <div className="col-span-3 flex items-center gap-2">
-                             <Select onValueChange={field.onChange} defaultValue={field.value}>
+                             <Select onValueChange={field.onChange} value={field.value}>
                                <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Seleccionar categoría" />
@@ -467,7 +541,7 @@ export default function ProductsPage() {
                       name="stock"
                       render={({ field }) => (
                         <FormItem className="grid grid-cols-4 items-center gap-4">
-                           <FormLabel className="text-right">Existencias Iniciales</FormLabel>
+                           <FormLabel className="text-right">Existencias</FormLabel>
                           <FormControl>
                             <Input type="number" placeholder="0" className="col-span-3" {...field} />
                           </FormControl>
@@ -482,7 +556,7 @@ export default function ProductsPage() {
                         <FormItem className="grid grid-cols-4 items-center gap-4">
                            <FormLabel className="text-right">Precio de Costo</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="10.00" className="col-span-3" {...field} />
+                            <Input type="number" step="0.01" placeholder="10.00" className="col-span-3" {...field} />
                           </FormControl>
                            <FormMessage className="col-span-4 text-right" />
                         </FormItem>
@@ -495,15 +569,38 @@ export default function ProductsPage() {
                         <FormItem className="grid grid-cols-4 items-center gap-4">
                            <FormLabel className="text-right">Precio de Venta</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="20.00" className="col-span-3" {...field} />
+                            <Input type="number" step="0.01" placeholder="20.00" className="col-span-3" {...field} />
                           </FormControl>
                            <FormMessage className="col-span-4 text-right" />
                         </FormItem>
                       )}
                     />
-                    <DialogFooter>
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem className="grid grid-cols-4 items-center gap-4">
+                           <FormLabel className="text-right">Estado</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Seleccionar estado" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="active">Activo</SelectItem>
+                                    <SelectItem value="draft">Borrador</SelectItem>
+                                    <SelectItem value="archived">Archivado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                           <FormMessage className="col-span-4 text-right" />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter className="pt-4 border-t -mx-6 px-6 pb-0 bg-background sticky bottom-0">
+                      <Button type="button" variant="outline" onClick={() => setProductDialogOpen(false)}>Cancelar</Button>
                       <Button type="submit" disabled={form.formState.isSubmitting}>
-                        {form.formState.isSubmitting ? "Guardando..." : "Guardar producto"}
+                        {form.formState.isSubmitting ? "Guardando..." : "Guardar Cambios"}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -551,7 +648,7 @@ export default function ProductsPage() {
                       <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-16" /></TableCell>
                       <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-12" /></TableCell>
                       <TableCell>
-                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <Skeleton className="h-8 w-8 rounded-full float-right" />
                       </TableCell>
                     </TableRow>
                   ))
@@ -570,6 +667,7 @@ export default function ProductsPage() {
                       </TableCell>
                       <TableCell className="font-medium">
                         {product.name}
+                         <div className="text-xs text-muted-foreground">SKU: {product.sku}</div>
                       </TableCell>
                       <TableCell>
                         <Badge variant={getStatusVariant(product.status)}>{getStatusText(product.status)}</Badge>
@@ -580,7 +678,7 @@ export default function ProductsPage() {
                       <TableCell className="hidden md:table-cell">
                         {product.stock}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -594,8 +692,9 @@ export default function ProductsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                            <DropdownMenuItem>Editar</DropdownMenuItem>
-                            <DropdownMenuItem>Eliminar</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditClick(product)}>Editar</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleDeleteClick(product)} className="text-red-600 focus:text-red-600 focus:bg-red-50">Eliminar</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -619,6 +718,26 @@ export default function ProductsPage() {
           </CardFooter>
         </Card>
       </Tabs>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Esto eliminará permanentemente el
+                    producto y su imagen del almacenamiento.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+                    Continuar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
+
+    
