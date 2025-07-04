@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -15,17 +14,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('Iniciar sesión');
-  const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log("[LoginPage] handleLogin triggered");
     setLoading(true);
-    setLoadingMessage('Contactando al servidor...');
-    console.log("[LoginPage] Attempting to sign in with email:", email);
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -33,20 +27,15 @@ export default function LoginPage() {
     });
 
     if (error) {
-      console.error("[LoginPage] Supabase auth error:", error);
-      setLoadingMessage('Error de autenticación.');
       toast({
         title: 'Error de autenticación',
         description: error.message || 'No se pudo iniciar sesión. Verifique sus credenciales.',
         variant: 'destructive',
       });
       setLoading(false);
-      setLoadingMessage('Iniciar sesión');
     } else {
-      console.log("[LoginPage] Supabase auth success:", data);
-      setLoadingMessage('¡Éxito! Redirigiendo al panel...');
-      console.log("[LoginPage] Redirecting to /dashboard...");
-      // Use window.location.href for a full page navigation, which is more reliable in iframes.
+      // Forzamos una navegación completa. El middleware se encargará de la redirección final.
+      // Esto es más fiable, especialmente dentro de iframes.
       window.location.href = '/dashboard';
     }
   };
@@ -95,7 +84,7 @@ export default function LoginPage() {
                 />
               </div>
               <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
-                {loading ? loadingMessage : 'Iniciar sesión'}
+                {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
               </Button>
             </form>
           </CardContent>
