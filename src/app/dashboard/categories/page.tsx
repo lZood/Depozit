@@ -37,6 +37,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -202,12 +203,12 @@ export default function CategoriesPage() {
         <Accordion type="single" collapsible className="w-full">
           {categories.map((category) => (
             <AccordionItem value={category.id} key={category.id} className="border rounded-md mb-2 bg-card">
-              <header className="flex items-center justify-between w-full">
-                  <AccordionTrigger className="flex-1 px-4 py-3 hover:no-underline text-left">
+              <AccordionTrigger className="flex w-full items-center px-4 py-3 hover:no-underline">
+                  <div className="flex-1 text-left">
                     <div className="flex items-center gap-4">
                       <span className="font-semibold text-lg">{category.name}</span>
                       <Badge variant="secondary">{category.products.length} Productos</Badge>
-                      {category.products.some(p => p.stock < 10) ? (
+                      {category.products.some(p => p.stock < 10) && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -218,10 +219,13 @@ export default function CategoriesPage() {
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                      ) : null}
+                      )}
                     </div>
-                  </AccordionTrigger>
-                  <div className="pr-4">
+                  </div>
+                  <div 
+                    className="flex items-center gap-1" 
+                    onClick={(e) => e.stopPropagation()} // Prevent accordion from toggling when clicking actions
+                  >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -256,8 +260,9 @@ export default function CategoriesPage() {
                         </AlertDialog>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
                   </div>
-              </header>
+              </AccordionTrigger>
 
               <AccordionContent>
                 <div className="px-4 pb-4">
@@ -332,5 +337,3 @@ export default function CategoriesPage() {
     </div>
   );
 }
-
-    
