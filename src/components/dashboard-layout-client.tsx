@@ -44,9 +44,12 @@ export default function DashboardLayoutClient({
   const supabase = createClient();
 
   const handleLogout = async () => {
+    console.log('[DashboardLayoutClient] Logging out...');
     await supabase.auth.signOut();
+    console.log('[DashboardLayoutClient] Logout complete. Redirecting to login page.');
+    // Pushing to the root will trigger the middleware, which will handle
+    // the user being logged out and ensure they stay on the login page.
     router.push('/');
-    router.refresh();
   };
 
   const allNavItems = [
