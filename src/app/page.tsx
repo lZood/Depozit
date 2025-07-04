@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Iniciar sesión');
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
+    setLoadingMessage('Contactando al servidor...');
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -29,13 +31,16 @@ export default function LoginPage() {
     });
 
     if (error) {
+      setLoadingMessage('Error de autenticación.');
       toast({
         title: 'Error de autenticación',
         description: error.message || 'No se pudo iniciar sesión. Verifique sus credenciales.',
         variant: 'destructive',
       });
       setLoading(false);
+      setLoadingMessage('Iniciar sesión');
     } else {
+      setLoadingMessage('¡Éxito! Redirigiendo al panel...');
       // On successful login, refresh the page.
       // The middleware will then handle redirecting the user to the dashboard.
       router.refresh();
@@ -86,7 +91,7 @@ export default function LoginPage() {
                 />
               </div>
               <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
-                {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                {loading ? loadingMessage : 'Iniciar sesión'}
               </Button>
             </form>
           </CardContent>
