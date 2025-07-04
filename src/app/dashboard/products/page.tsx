@@ -157,7 +157,7 @@ export default function ProductsPage() {
     let imageUrl: string | null = null;
 
     // 1. Handle image upload if a file is provided
-    if (values.image_file && values.image_file instanceof File) {
+    if (values.image_file && values.image_file instanceof window.File) {
       const file = values.image_file;
       const filePath = `public/${Date.now()}-${file.name}`;
       
