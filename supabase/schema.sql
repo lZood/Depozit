@@ -1,14 +1,13 @@
-
 -- Habilitar la extensión pgcrypto si no está habilitada
 create extension if not exists "pgcrypto" with schema "public";
 
 -- Crear un tipo personalizado para los roles de la aplicación
-do $$
-begin
-    if not exists (select 1 from pg_type where typname = 'app_role') then
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
         create type public.app_role as enum ('admin', 'employee');
-    end if;
-end$$;
+    END IF;
+END$$;
 
 
 -- Tabla de perfiles de usuario para almacenar roles
@@ -17,6 +16,33 @@ create table if not exists public.profiles (
   role public.app_role not null default 'employee'
 );
 comment on table public.profiles is 'Almacena datos específicos del usuario, como el rol.';
+
+-- Función para manejar la creación de nuevos usuarios y poblar la tabla de perfiles
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, role)
+  values (new.id, 'employee'); -- El rol por defecto es 'employee'
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger para ejecutar la función handle_new_user después de que se inserte un nuevo usuario en auth.users
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Función para obtener el rol del usuario actual
+create or replace function public.get_my_role()
+returns text as $$
+declare
+    user_role text;
+begin
+    select role::text into user_role from public.profiles where id = auth.uid();
+    return user_role;
+end;
+$$ language plpgsql security definer;
 
 -- Tabla para Categorías de Productos
 create table if not exists public.categories (
@@ -45,18 +71,18 @@ create table if not exists public.products (
   description text,
   sku text unique,
   barcode text unique,
+  image_url text,
   cost_price numeric(10, 2) default 0.00 not null,
   sale_price numeric(10, 2) not null,
   stock integer default 0 not null,
   status text default 'active'::text not null, -- 'active', 'draft', 'archived'
-  image_url text, -- URL de la imagen del producto
   category_id uuid references public.categories(id),
   supplier_id uuid references public.suppliers(id),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 comment on table public.products is 'Almacena los productos del inventario.';
-comment on column public.products.image_url is 'URL de la imagen del producto almacenada en Supabase Storage.';
+comment on column public.products.image_url is 'URL to the product image in Supabase Storage.';
 
 
 -- Tabla para Clientes
@@ -129,39 +155,6 @@ create trigger on_product_update
   before update on public.products
   for each row execute procedure public.handle_updated_at();
 
--- Función para manejar la creación de nuevos usuarios y poblar la tabla de perfiles
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, role)
-  values (new.id, 'employee'); -- El rol por defecto es 'employee'
-  return new;
-end;
-$$ language plpgsql security definer;
-
--- Trigger para ejecutar la función handle_new_user después de que se inserte un nuevo usuario en auth.users
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-
--- Función para obtener el rol del usuario actual
-create or replace function public.get_my_role()
-returns text as $$
-declare
-    user_role text;
-begin
-    if auth.uid() is null then
-        return null;
-    end if;
-    select role::text into user_role from public.profiles where id = auth.uid();
-    return user_role;
-end;
-$$ language plpgsql security definer;
-
-
--- POLÍTICAS DE SEGURIDAD A NIVEL DE FILA (RLS)
-
 -- Habilitar RLS en todas las tablas
 alter table public.categories enable row level security;
 alter table public.suppliers enable row level security;
@@ -173,31 +166,32 @@ alter table public.purchase_orders enable row level security;
 alter table public.purchase_order_items enable row level security;
 alter table public.profiles enable row level security;
 
--- Limpiar políticas antiguas antes de crear las nuevas
--- (Esto asegura que no haya políticas duplicadas o conflictivas)
+-- LIMPIAR POLÍTICAS ANTIGUAS
+-- Es seguro ejecutar estos drops incluso si las políticas no existen.
 drop policy if exists "Allow all authenticated users" on public.categories;
 drop policy if exists "Enable read access for all users" on public.categories;
+drop policy if exists "Allow full access for admins on categories" on public.categories;
 drop policy if exists "Allow all authenticated users" on public.suppliers;
+drop policy if exists "Allow full access for admins on suppliers" on public.suppliers;
 drop policy if exists "Allow all authenticated users" on public.products;
 drop policy if exists "Enable read access for all users" on public.products;
+drop policy if exists "Allow full access for admins" on public.products;
+drop policy if exists "Allow insert for authenticated users" on public.products;
+drop policy if exists "Allow update for admins" on public.products;
+drop policy if exists "Allow delete for admins" on public.products;
 drop policy if exists "Allow all authenticated users" on public.customers;
+drop policy if exists "Allow all access for authenticated users on customers" on public.customers;
 drop policy if exists "Allow all authenticated users" on public.sales;
+drop policy if exists "Allow all access for authenticated users on sales" on public.sales;
 drop policy if exists "Allow all authenticated users" on public.sale_items;
+drop policy if exists "Allow all access for authenticated users on sale_items" on public.sale_items;
 drop policy if exists "Allow all authenticated users" on public.purchase_orders;
+drop policy if exists "Allow full access for admins on purchase_orders" on public.purchase_orders;
 drop policy if exists "Allow all authenticated users" on public.purchase_order_items;
-
+drop policy if exists "Allow full access for admins on purchase_order_items" on public.purchase_order_items;
 drop policy if exists "Allow individual read access" on public.profiles;
 drop policy if exists "Allow individual update access" on public.profiles;
-drop policy if exists "Allow read access to everyone" on public.products;
-drop policy if exists "Allow full access for admins" on public.products;
-drop policy if exists "Allow read access to everyone" on public.categories;
-drop policy if exists "Allow full access for admins on categories" on public.categories;
-drop policy if exists "Allow full access for admins on suppliers" on public.suppliers;
-drop policy if exists "Allow all access for authenticated users on customers" on public.customers;
-drop policy if exists "Allow all access for authenticated users on sales" on public.sales;
-drop policy if exists "Allow all access for authenticated users on sale_items" on public.sale_items;
-drop policy if exists "Allow full access for admins on purchase_orders" on public.purchase_orders;
-drop policy if exists "Allow full access for admins on purchase_order_items" on public.purchase_order_items;
+
 
 -- NUEVAS POLÍTICAS BASADAS EN ROLES
 
@@ -205,9 +199,12 @@ drop policy if exists "Allow full access for admins on purchase_order_items" on 
 create policy "Allow individual read access" on public.profiles for select using (auth.uid() = id);
 create policy "Allow individual update access" on public.profiles for update using (auth.uid() = id);
 
--- Productos: Todos pueden ver, pero solo los administradores pueden crear/modificar/eliminar.
+-- Productos: Todos pueden ver. Empleados y Admins pueden crear. Admins pueden modificar/eliminar.
 create policy "Allow read access to everyone" on public.products for select using (true);
-create policy "Allow full access for admins" on public.products for all using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+create policy "Allow insert for authenticated users" on public.products for insert to authenticated with check (true);
+create policy "Allow update for admins" on public.products for update to authenticated using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+create policy "Allow delete for admins" on public.products for delete to authenticated using (public.get_my_role() = 'admin');
+
 
 -- Categorías: Todos pueden ver, pero solo los administradores pueden crear/modificar/eliminar.
 create policy "Allow read access to everyone" on public.categories for select using (true);
@@ -226,3 +223,17 @@ create policy "Allow all access for authenticated users on sale_items" on public
 -- Órdenes de Compra: Solo los administradores pueden gestionar las órdenes de compra.
 create policy "Allow full access for admins on purchase_orders" on public.purchase_orders for all using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
 create policy "Allow full access for admins on purchase_order_items" on public.purchase_order_items for all using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+
+
+-- POLÍTICAS DE ALMACENAMIENTO (STORAGE)
+-- Bucket: product-images
+
+drop policy if exists "Allow public read on product images" on storage.objects;
+drop policy if exists "Allow insert for authenticated users on product images" on storage.objects;
+drop policy if exists "Allow update for admins on product images" on storage.objects;
+drop policy if exists "Allow delete for admins on product images" on storage.objects;
+
+create policy "Allow public read on product images" on storage.objects for select using ( bucket_id = 'product-images' );
+create policy "Allow insert for authenticated users on product images" on storage.objects for insert to authenticated with check ( bucket_id = 'product-images' );
+create policy "Allow update for admins on product images" on storage.objects for update to authenticated using ( bucket_id = 'product-images' AND public.get_my_role() = 'admin' ) with check ( bucket_id = 'product-images' AND public.get_my_role() = 'admin' );
+create policy "Allow delete for admins on product images" on storage.objects for delete to authenticated using ( bucket_id = 'product-images' AND public.get_my_role() = 'admin' );

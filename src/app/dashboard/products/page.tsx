@@ -163,7 +163,7 @@ export default function ProductsPage() {
       const filePath = `public/${Date.now()}-${file.name}`;
       
       const { error: uploadError } = await supabase.storage
-        .from('product_images')
+        .from('product-images')
         .upload(filePath, file);
 
       if (uploadError) {
@@ -176,7 +176,7 @@ export default function ProductsPage() {
       }
       
       const { data: { publicUrl } } = supabase.storage
-        .from('product_images')
+        .from('product-images')
         .getPublicUrl(filePath);
         
       imageUrl = publicUrl;
@@ -208,7 +208,7 @@ export default function ProductsPage() {
        // Optional: Attempt to delete the orphaned image if product insertion fails
        if (imageUrl) {
          const filePath = imageUrl.split('/').pop();
-         if(filePath) await supabase.storage.from('product_images').remove([`public/${filePath}`]);
+         if(filePath) await supabase.storage.from('product-images').remove([`public/${filePath}`]);
        }
     } else {
       toast({
