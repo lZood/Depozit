@@ -5,8 +5,10 @@ import * as React from "react";
 import {
   MoreHorizontal,
   PlusCircle,
+  AlertTriangle
 } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -49,22 +51,32 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-type Category = {
+type ProductInfo = {
   id: string;
   name: string;
+  sku: string | null;
+  stock: number;
+};
+
+type CategoryWithProducts = {
+  id: string;
+  name: string;
+  products: ProductInfo[];
 };
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = React.useState<Category[]>([]);
+  const [categories, setCategories] = React.useState<CategoryWithProducts[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editingCategory, setEditingCategory] = React.useState<Category | null>(null);
+  const [editingCategory, setEditingCategory] = React.useState<CategoryWithProducts | null>(null);
   const [categoryName, setCategoryName] = React.useState("");
   const supabase = createClient();
   const { toast } = useToast();
@@ -73,7 +85,7 @@ export default function CategoriesPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name")
+      .select("id, name, products(id, name, sku, stock)")
       .order("name", { ascending: true });
 
     if (error) {
@@ -84,7 +96,7 @@ export default function CategoriesPage() {
         variant: "destructive",
       });
     } else if (data) {
-      setCategories(data as Category[]);
+      setCategories(data as CategoryWithProducts[]);
     }
     setLoading(false);
   };
@@ -93,7 +105,7 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
-  const handleEditClick = (category: Category) => {
+  const handleEditClick = (category: CategoryWithProducts) => {
     setEditingCategory(category);
     setCategoryName(category.name);
     setDialogOpen(true);
@@ -155,11 +167,15 @@ export default function CategoriesPage() {
     }
   };
 
-
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
       <div className="flex items-center">
-        <h1 className="text-lg font-semibold md:text-2xl">Categorías</h1>
+        <div className="space-y-1">
+            <h1 className="text-lg font-semibold md:text-2xl">Categorías</h1>
+            <p className="text-sm text-muted-foreground">
+                Expanda una categoría para ver los productos que contiene.
+            </p>
+        </div>
         <div className="ml-auto flex items-center gap-2">
           <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}>
             <PlusCircle className="h-3.5 w-3.5" />
@@ -169,41 +185,42 @@ export default function CategoriesPage() {
           </Button>
         </div>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestionar Categorías</CardTitle>
-          <CardDescription>
-            Agregue, edite o elimine las categorías de sus productos.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre de la Categoría</TableHead>
-                <TableHead className="text-right">
-                  <span className="sr-only">Acciones</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                [...Array(3)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <Skeleton className="h-6 w-48" />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Skeleton className="h-8 w-8 rounded-full float-right" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : categories.length > 0 ? (
-                categories.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
+      
+      {loading ? (
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </CardHeader>
+          <CardContent className="space-y-2 p-6">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full rounded-md" />
+            ))}
+          </CardContent>
+        </Card>
+      ) : categories.length > 0 ? (
+        <Accordion type="single" collapsible className="w-full">
+          {categories.map((category) => (
+            <AccordionItem value={category.id} key={category.id} className="border rounded-md mb-2 bg-card">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                <div className="flex-1 flex items-center gap-4 text-left">
+                  <span className="font-semibold text-lg">{category.name}</span>
+                  <Badge variant="secondary">{category.products.length} Productos</Badge>
+                  {category.products.some(p => p.stock < 10) && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Algunos productos tienen bajo inventario.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button aria-haspopup="true" size="icon" variant="ghost">
                             <MoreHorizontal className="h-4 w-4" />
@@ -217,7 +234,7 @@ export default function CategoriesPage() {
                           </DropdownMenuItem>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                               <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600">Eliminar</DropdownMenuItem>
+                               <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:text-red-600 focus:bg-red-50">Eliminar</DropdownMenuItem>
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -236,21 +253,48 @@ export default function CategoriesPage() {
                             </AlertDialogContent>
                           </AlertDialog>
                         </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={2} className="h-24 text-center">
-                    No se encontraron categorías. Comience agregando una nueva.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    </DropdownMenu>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="px-4 pb-4">
+                  {category.products.length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Producto</TableHead>
+                                <TableHead>SKU</TableHead>
+                                <TableHead className="text-right">Existencias</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {category.products.map(product => (
+                            <TableRow key={product.id}>
+                                <TableCell className="font-medium">{product.name}</TableCell>
+                                <TableCell className="text-muted-foreground">{product.sku || 'N/A'}</TableCell>
+                                <TableCell className="text-right">{product.stock}</TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                      </Table>
+                  ) : (
+                    <p className="text-muted-foreground text-sm py-2">
+                      No hay productos asignados a esta categoría.
+                    </p>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      ) : (
+         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-48">
+            <div className="flex flex-col items-center gap-1 text-center">
+                <h3 className="text-2xl font-bold tracking-tight">No se encontraron categorías</h3>
+                <p className="text-sm text-muted-foreground">Comience agregando una nueva para organizar sus productos.</p>
+            </div>
+        </div>
+      )}
       
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
