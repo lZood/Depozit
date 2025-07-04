@@ -159,7 +159,7 @@ export default function ProductsPage() {
     // 1. Handle image upload if a file is provided
     if (values.image_file && values.image_file instanceof window.File) {
       const file = values.image_file;
-      const filePath = `public/${Date.now()}-${file.name}`;
+      const filePath = `${Date.now()}-${file.name}`;
       
       const { error: uploadError } = await supabase.storage
         .from('product-images')
@@ -206,8 +206,8 @@ export default function ProductsPage() {
       });
        // Optional: Attempt to delete the orphaned image if product insertion fails
        if (imageUrl) {
-         const filePath = imageUrl.split('/').pop();
-         if(filePath) await supabase.storage.from('product-images').remove([`public/${filePath}`]);
+         const filePathToDelete = imageUrl.split('/').pop();
+         if(filePathToDelete) await supabase.storage.from('product-images').remove([filePathToDelete]);
        }
     } else {
       toast({
