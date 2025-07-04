@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createClient } from "@/lib/supabase/client"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/hooks/use-toast"
 
 type Product = {
   id: string;
@@ -39,41 +40,73 @@ export default function ProductsPage() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [addCategoryDialogOpen, setAddCategoryDialogOpen] = React.useState(false);
+  const [newCategoryName, setNewCategoryName] = React.useState("");
   const supabase = createClient();
+  const { toast } = useToast();
+
+  const fetchCategories = React.useCallback(async () => {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id, name')
+      .order('name');
+      
+    if (error) {
+      console.error('Error al obtener categorías:', error);
+      toast({ title: "Error", description: "No se pudieron cargar las categorías.", variant: "destructive" });
+    } else if (data) {
+      setCategories(data as Category[]);
+    }
+  }, [supabase, toast]);
 
   React.useEffect(() => {
-    const fetchProductsAndCategories = async () => {
-      setLoading(true);
-      
-      const productsPromise = supabase
+    const fetchProducts = async () => {
+      const { data, error } = await supabase
         .from('products')
         .select('id, name, status, sale_price, stock')
         .order('created_at', { ascending: false });
 
-      const categoriesPromise = supabase
-        .from('categories')
-        .select('id, name')
-        .order('name');
-        
-      const [productsResult, categoriesResult] = await Promise.all([productsPromise, categoriesPromise]);
-
-      if (productsResult.error) {
-        console.error('Error al obtener productos:', productsResult.error);
-      } else if (productsResult.data) {
-        setProducts(productsResult.data as Product[]);
+      if (error) {
+        console.error('Error al obtener productos:', error);
+      } else if (data) {
+        setProducts(data as Product[]);
       }
-      
-      if (categoriesResult.error) {
-        console.error('Error al obtener categorías:', categoriesResult.error);
-      } else if (categoriesResult.data) {
-        setCategories(categoriesResult.data as Category[]);
-      }
+    }
 
-      setLoading(false);
-    };
+    const loadData = async () => {
+        setLoading(true);
+        await Promise.all([fetchProducts(), fetchCategories()]);
+        setLoading(false);
+    }
+    
+    loadData();
+  }, [fetchCategories, supabase]);
 
-    fetchProductsAndCategories();
-  }, []);
+  const handleAddCategory = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newCategoryName.trim()) {
+        toast({ title: "Error", description: "El nombre no puede estar vacío.", variant: "destructive" });
+        return;
+    }
+
+    const { error } = await supabase.from("categories").insert([{ name: newCategoryName }]);
+
+    if (error) {
+      toast({ 
+        title: "Error al crear", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } else {
+      toast({ 
+        title: "Éxito", 
+        description: "Categoría creada." 
+      });
+      setAddCategoryDialogOpen(false);
+      setNewCategoryName("");
+      await fetchCategories();
+    }
+  };
 
   const getStatusVariant = (status: Product['status']) => {
     switch (status) {
@@ -185,24 +218,57 @@ export default function ProductsPage() {
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Categoría</Label>
-                    <Select>
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Seleccionar categoría" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.length > 0 ? (
-                          categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.name}
+                    <div className="col-span-3 flex items-center gap-2">
+                      <Select>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Seleccionar categoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.length > 0 ? (
+                            categories.map((category) => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="loading" disabled>
+                              {loading ? "Cargando..." : "Sin categorías"}
                             </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="loading" disabled>
-                            {loading ? "Cargando..." : "Sin categorías"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Dialog open={addCategoryDialogOpen} onOpenChange={setAddCategoryDialogOpen}>
+                        <DialogTrigger asChild>
+                           <Button type="button" variant="outline" size="icon" className="shrink-0">
+                              <PlusCircle className="h-4 w-4" />
+                              <span className="sr-only">Agregar Nueva Categoría</span>
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <form onSubmit={handleAddCategory}>
+                              <DialogHeader>
+                                  <DialogTitle>Agregar Nueva Categoría</DialogTitle>
+                                  <DialogDescription>
+                                      Ingrese el nombre para la nueva categoría.
+                                  </DialogDescription>
+                              </DialogHeader>
+                              <div className="grid gap-4 py-4">
+                                  <Label htmlFor="new-category-name">Nombre</Label>
+                                  <Input 
+                                      id="new-category-name" 
+                                      value={newCategoryName}
+                                      onChange={(e) => setNewCategoryName(e.target.value)}
+                                      placeholder="Ej. Bebidas"
+                                      required
+                                  />
+                              </div>
+                              <DialogFooter>
+                                  <Button type="submit">Guardar Categoría</Button>
+                              </DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="cost" className="text-right">Precio de Costo</Label>

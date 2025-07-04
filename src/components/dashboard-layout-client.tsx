@@ -15,7 +15,6 @@ import {
   Settings,
   PanelLeft,
   Search,
-  Shapes,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -56,7 +55,6 @@ export default function DashboardLayoutClient({
     { href: "/dashboard", icon: Home, label: "Panel", roles: ['admin', 'employee'] },
     { href: "/dashboard/sell", icon: ShoppingCart, label: "Vender", roles: ['admin', 'employee'] },
     { href: "/dashboard/products", icon: Package, label: "Productos", roles: ['admin', 'employee'] },
-    { href: "/dashboard/categories", icon: Shapes, label: "Categorías", roles: ['admin'] },
     { href: "/dashboard/orders", icon: Truck, label: "Órdenes de Compra", roles: ['admin'] },
     { href: "/dashboard/inventory", icon: Warehouse, label: "Inventario", roles: ['admin', 'employee'] },
     { href: "/dashboard/reports", icon: LineChart, label: "Reportes", roles: ['admin'] },
