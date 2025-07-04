@@ -1,6 +1,43 @@
 -- Habilitar la extensión pgcrypto si no está habilitada
 create extension if not exists "pgcrypto" with schema "public";
 
+-- Crear un tipo personalizado para los roles de la aplicación
+create type public.app_role as enum ('admin', 'employee');
+
+-- Tabla de perfiles de usuario para almacenar roles
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  role public.app_role not null default 'employee'
+);
+comment on table public.profiles is 'Almacena datos específicos del usuario, como el rol.';
+
+-- Función para manejar la creación de nuevos usuarios y poblar la tabla de perfiles
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, role)
+  values (new.id, 'employee'); -- El rol por defecto es 'employee'
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger para ejecutar la función handle_new_user después de que se inserte un nuevo usuario en auth.users
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Función para obtener el rol del usuario actual
+create or replace function public.get_my_role()
+returns text as $$
+declare
+    user_role text;
+begin
+    select role::text into user_role from public.profiles where id = auth.uid();
+    return user_role;
+end;
+$$ language plpgsql security definer;
+
 -- Tabla para Categorías de Productos
 create table if not exists public.categories (
   id uuid default gen_random_uuid() primary key,
@@ -104,15 +141,12 @@ end;
 $$ language plpgsql;
 
 -- Trigger para actualizar updated_at en la tabla de productos
+drop trigger if exists on_product_update on public.products;
 create trigger on_product_update
   before update on public.products
   for each row execute procedure public.handle_updated_at();
 
--- Políticas de Seguridad a Nivel de Fila (RLS)
--- Es una buena práctica habilitar RLS en todas las tablas y definir políticas explícitas.
--- Por ahora, solo habilitaremos RLS, asumiendo que el acceso será a través de la clave de servicio (service_role)
--- que omite RLS. Se deben definir políticas más granulares para el acceso del lado del cliente.
-
+-- Habilitar RLS en todas las tablas
 alter table public.categories enable row level security;
 alter table public.suppliers enable row level security;
 alter table public.products enable row level security;
@@ -121,20 +155,46 @@ alter table public.sales enable row level security;
 alter table public.sale_items enable row level security;
 alter table public.purchase_orders enable row level security;
 alter table public.purchase_order_items enable row level security;
+alter table public.profiles enable row level security;
 
--- Políticas permisivas para empezar (permitir todo a usuarios autenticados)
--- **¡ADVERTENCIA!** Estas son políticas muy permisivas. Para producción, debes restringirlas
--- según los roles y permisos de tu aplicación.
+-- Limpiar políticas antiguas antes de crear las nuevas
+drop policy if exists "Allow all authenticated users" on public.categories;
+drop policy if exists "Enable read access for all users" on public.categories;
+-- Repetir para todas las tablas...
+drop policy if exists "Allow all authenticated users" on public.suppliers;
+drop policy if exists "Allow all authenticated users" on public.products;
+drop policy if exists "Enable read access for all users" on public.products;
+drop policy if exists "Allow all authenticated users" on public.customers;
+drop policy if exists "Allow all authenticated users" on public.sales;
+drop policy if exists "Allow all authenticated users" on public.sale_items;
+drop policy if exists "Allow all authenticated users" on public.purchase_orders;
+drop policy if exists "Allow all authenticated users" on public.purchase_order_items;
 
-create policy "Allow all authenticated users" on public.categories for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Allow all authenticated users" on public.suppliers for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Allow all authenticated users" on public.products for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Allow all authenticated users" on public.customers for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Allow all authenticated users" on public.sales for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Allow all authenticated users" on public.sale_items for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Allow all authenticated users" on public.purchase_orders for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Allow all authenticated users" on public.purchase_order_items for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
--- Permitir acceso de lectura (select) a todos los usuarios, incluyendo no autenticados, para ciertas tablas.
-create policy "Enable read access for all users" on public.products for select using (true);
-create policy "Enable read access for all users" on public.categories for select using (true);
+-- NUEVAS POLÍTICAS BASADAS EN ROLES
+
+-- Perfiles: Los usuarios solo pueden ver y editar su propio perfil.
+create policy "Allow individual read access" on public.profiles for select using (auth.uid() = id);
+create policy "Allow individual update access" on public.profiles for update using (auth.uid() = id);
+
+-- Productos: Todos pueden ver, pero solo los administradores pueden crear/modificar/eliminar.
+create policy "Allow read access to everyone" on public.products for select using (true);
+create policy "Allow full access for admins" on public.products for all using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+
+-- Categorías: Todos pueden ver, pero solo los administradores pueden crear/modificar/eliminar.
+create policy "Allow read access to everyone" on public.categories for select using (true);
+create policy "Allow full access for admins on categories" on public.categories for all using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+
+-- Proveedores: Solo los administradores pueden gestionar proveedores.
+create policy "Allow full access for admins on suppliers" on public.suppliers for all using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+
+-- Clientes: Los empleados y administradores pueden gestionar clientes.
+create policy "Allow all access for authenticated users on customers" on public.customers for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- Ventas y Detalle de Ventas: Los empleados y administradores pueden crear y ver ventas.
+create policy "Allow all access for authenticated users on sales" on public.sales for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "Allow all access for authenticated users on sale_items" on public.sale_items for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- Órdenes de Compra: Solo los administradores pueden gestionar las órdenes de compra.
+create policy "Allow full access for admins on purchase_orders" on public.purchase_orders for all using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');
+create policy "Allow full access for admins on purchase_order_items" on public.purchase_order_items for all using (public.get_my_role() = 'admin') with check (public.get_my_role() = 'admin');

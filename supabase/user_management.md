@@ -22,9 +22,18 @@ Te recomiendo crear los siguientes dos usuarios para que podamos seguir desarrol
     *   **Contraseña:** Una contraseña segura que recuerdes.
 
 2.  **Usuario Empleado:**
-    *   **Email:** `empleado@depoziv.com`
+    *   **Email:** `empleado@depozit.com`
     *   **Contraseña:** Otra contraseña segura.
 
-## Siguientes Pasos
+## Asignación de Roles
 
-Por ahora, ambos usuarios tendrán los mismos permisos. El siguiente paso importante será implementar un sistema de roles para que el **administrador** tenga más privilegios que el **empleado**. ¡Podemos trabajar en eso a continuación!
+Después de crear los usuarios, debes asignarles el rol correcto. Por defecto, todos los usuarios nuevos son `employee`. Para cambiar un usuario a `admin`, sigue estos pasos:
+
+1.  **Ir al Editor de Tablas:** En el menú de la izquierda de Supabase, haz clic en el ícono de la tabla (**Table Editor**).
+2.  **Seleccionar la tabla `profiles`:** En la lista de tablas, busca y haz clic en `profiles`.
+3.  **Editar el Rol:**
+    *   Verás una fila por cada usuario que has creado. La columna `role` dirá `employee` para ambos.
+    *   Busca la fila que corresponde al email de tu usuario administrador (ej. `admin@depozit.com`).
+    *   Haz doble clic en la celda `role` de esa fila.
+    *   Cambia el valor de `employee` a `admin` y presiona Enter o haz clic fuera para guardar.
+4.  **¡Listo!** Tu usuario ahora tiene permisos de administrador en la aplicación.
