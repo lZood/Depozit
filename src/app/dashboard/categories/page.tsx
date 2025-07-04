@@ -5,7 +5,8 @@ import * as React from "react";
 import {
   MoreHorizontal,
   PlusCircle,
-  AlertTriangle
+  AlertTriangle,
+  ChevronDown
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -202,60 +202,63 @@ export default function CategoriesPage() {
         <Accordion type="single" collapsible className="w-full">
           {categories.map((category) => (
             <AccordionItem value={category.id} key={category.id} className="border rounded-md mb-2 bg-card">
-              <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                <div className="flex-1 flex items-center gap-4 text-left">
-                  <span className="font-semibold text-lg">{category.name}</span>
-                  <Badge variant="secondary">{category.products.length} Productos</Badge>
-                  {category.products.some(p => p.stock < 10) && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Algunos productos tienen bajo inventario.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </div>
-                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <header className="flex items-center justify-between w-full">
+                  <AccordionTrigger className="flex-1 px-4 py-3 hover:no-underline text-left">
+                    <div className="flex items-center gap-4">
+                      <span className="font-semibold text-lg">{category.name}</span>
+                      <Badge variant="secondary">{category.products.length} Productos</Badge>
+                      {category.products.some(p => p.stock < 10) ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Algunos productos tienen bajo inventario.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : null}
+                    </div>
+                  </AccordionTrigger>
+                  <div className="pr-4">
                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Alternar menú</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEditClick(category)}>
-                            Editar
-                          </DropdownMenuItem>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                               <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:text-red-600 focus:bg-red-50">Eliminar</DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Esta acción no se puede deshacer. Esto eliminará permanentemente la
-                                        categoría. Los productos en esta categoría no se eliminarán, pero se quedarán sin categoría.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDelete(category.id)} className="bg-red-600 hover:bg-red-700">
-                                        Continuar
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </DropdownMenuContent>
+                      <DropdownMenuTrigger asChild>
+                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Alternar menú</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleEditClick(category)}>
+                          Editar
+                        </DropdownMenuItem>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:text-red-600 focus:bg-red-50">Eliminar</DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                      Esta acción no se puede deshacer. Esto eliminará permanentemente la
+                                      categoría. Los productos en esta categoría no se eliminarán, pero se quedarán sin categoría.
+                                  </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(category.id)} className="bg-red-600 hover:bg-red-700">
+                                      Continuar
+                                  </AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </DropdownMenuContent>
                     </DropdownMenu>
-                </div>
-              </AccordionTrigger>
+                  </div>
+              </header>
+
               <AccordionContent>
                 <div className="px-4 pb-4">
                   {category.products.length > 0 ? (
@@ -329,3 +332,5 @@ export default function CategoriesPage() {
     </div>
   );
 }
+
+    
