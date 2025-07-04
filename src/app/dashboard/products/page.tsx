@@ -6,6 +6,7 @@ import {
   ListFilter,
   MoreHorizontal,
   PlusCircle,
+  Image as ImageIcon,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,13 +30,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 
 const productFormSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio."),
-  sku: z.string().optional(),
+  sku: z.string().min(1, "El SKU es obligatorio."),
   barcode: z.string().optional(),
   description: z.string().optional(),
   category_id: z.string().optional(),
   cost_price: z.coerce.number().min(0, "El precio debe ser positivo.").optional(),
   sale_price: z.coerce.number().min(0.01, "El precio de venta es obligatorio y debe ser mayor a 0."),
   stock: z.coerce.number().int("Las existencias deben ser un número entero.").min(0, "Las existencias no pueden ser negativas."),
+  image_file: z.instanceof(File).optional(),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -47,6 +49,7 @@ type Product = {
   status: 'active' | 'draft' | 'archived';
   sale_price: number;
   stock: number;
+  image_url: string | null;
 };
 
 type Category = {
@@ -61,6 +64,7 @@ export default function ProductsPage() {
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = React.useState(false);
   const [addProductDialogOpen, setAddProductDialogOpen] = React.useState(false);
   const [newCategoryName, setNewCategoryName] = React.useState("");
+  const [imagePreview, setImagePreview] = React.useState<string | null>(null);
   const supabase = createClient();
   const { toast } = useToast();
 
@@ -75,13 +79,14 @@ export default function ProductsPage() {
       cost_price: 0,
       sale_price: undefined,
       stock: 0,
+      image_file: undefined,
     },
   });
 
   const fetchProducts = React.useCallback(async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, status, sale_price, stock')
+      .select('id, name, status, sale_price, stock, image_url')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -119,6 +124,7 @@ export default function ProductsPage() {
   React.useEffect(() => {
     if (!addProductDialogOpen) {
       form.reset();
+      setImagePreview(null);
     }
   }, [addProductDialogOpen, form]);
 
@@ -149,18 +155,48 @@ export default function ProductsPage() {
   };
 
   async function onProductSubmit(values: ProductFormValues) {
+    let imageUrl: string | null = null;
+
+    // 1. Handle image upload if a file is provided
+    if (values.image_file) {
+      const file = values.image_file;
+      const filePath = `public/${Date.now()}-${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('product_images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast({
+          title: "Error al subir la imagen",
+          description: uploadError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('product_images')
+        .getPublicUrl(filePath);
+        
+      imageUrl = publicUrl;
+    }
+
+    // 2. Prepare product data for insertion
     const payload = {
       name: values.name,
-      sku: values.sku || null,
+      sku: values.sku,
       barcode: values.barcode || null,
       description: values.description || null,
       category_id: values.category_id || null,
       cost_price: values.cost_price || 0,
       sale_price: values.sale_price,
       stock: values.stock,
-      status: 'active'
+      status: 'active',
+      image_url: imageUrl,
     };
 
+    // 3. Insert product into the database
     const { error } = await supabase.from('products').insert([payload]);
 
     if (error) {
@@ -169,6 +205,11 @@ export default function ProductsPage() {
         description: error.message,
         variant: "destructive",
       });
+       // Optional: Attempt to delete the orphaned image if product insertion fails
+       if (imageUrl) {
+         const filePath = imageUrl.split('/').pop();
+         if(filePath) await supabase.storage.from('product_images').remove([`public/${filePath}`]);
+       }
     } else {
       toast({
         title: "Producto guardado",
@@ -178,7 +219,6 @@ export default function ProductsPage() {
       await fetchProducts();
     }
   }
-
 
   const getStatusVariant = (status: Product['status']) => {
     switch (status) {
@@ -205,7 +245,6 @@ export default function ProductsPage() {
         return status;
     }
   };
-
 
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
@@ -265,6 +304,50 @@ export default function ProductsPage() {
                 </DialogHeader>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onProductSubmit)} className="grid gap-4 py-4">
+                     <FormField
+                        control={form.control}
+                        name="image_file"
+                        render={({ field }) => (
+                          <FormItem className="grid grid-cols-4 items-start gap-4">
+                            <FormLabel className="text-right pt-2">Imagen</FormLabel>
+                            <div className="col-span-3">
+                              <FormControl>
+                                <div className="flex items-center gap-4">
+                                  <div className="w-24 h-24 rounded-md border-2 border-dashed border-muted-foreground flex items-center justify-center">
+                                    {imagePreview ? (
+                                       <Image src={imagePreview} alt="Vista previa" width={96} height={96} className="aspect-square rounded-md object-cover" />
+                                    ) : (
+                                      <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                                    )}
+                                  </div>
+                                  <Label htmlFor="image-upload" className="cursor-pointer text-sm text-primary underline-offset-4 hover:underline">
+                                    Subir un archivo
+                                    <Input 
+                                      id="image-upload"
+                                      type="file" 
+                                      className="sr-only" 
+                                      accept="image/*"
+                                      capture="environment"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          field.onChange(file);
+                                          const reader = new FileReader();
+                                          reader.onloadend = () => {
+                                            setImagePreview(reader.result as string);
+                                          };
+                                          reader.readAsDataURL(file);
+                                        }
+                                      }}
+                                    />
+                                  </Label>
+                                </div>
+                              </FormControl>
+                              <FormMessage className="pt-2" />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
                     <FormField
                       control={form.control}
                       name="name"
@@ -478,10 +561,10 @@ export default function ProductsPage() {
                     <TableRow key={product.id}>
                       <TableCell className="hidden sm:table-cell">
                         <Image
-                          alt="Imagen del producto"
+                          alt={product.name || "Imagen del producto"}
                           className="aspect-square rounded-md object-cover"
                           height="64"
-                          src={`https://placehold.co/64x64.png`}
+                          src={product.image_url || `https://placehold.co/64x64.png`}
                           width="64"
                           data-ai-hint="product photo"
                         />
