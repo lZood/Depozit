@@ -25,11 +25,11 @@ export default function ProductsPage() {
       <Tabs defaultValue="all">
         <div className="flex items-center">
           <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="draft">Draft</TabsTrigger>
+            <TabsTrigger value="all">Todos</TabsTrigger>
+            <TabsTrigger value="active">Activo</TabsTrigger>
+            <TabsTrigger value="draft">Borrador</TabsTrigger>
             <TabsTrigger value="archived" className="hidden sm:flex">
-              Archived
+              Archivado
             </TabsTrigger>
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
@@ -38,26 +38,26 @@ export default function ProductsPage() {
                 <Button variant="outline" size="sm" className="h-8 gap-1">
                   <ListFilter className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Filter
+                    Filtrar
                   </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+                <DropdownMenuLabel>Filtrar por</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem checked>
-                  Active
+                  Activo
                 </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem>Draft</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem>Borrador</DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem>
-                  Archived
+                  Archivado
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button size="sm" variant="outline" className="h-8 gap-1">
               <File className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Export
+                Exportar
               </span>
             </Button>
             <Dialog>
@@ -65,23 +65,23 @@ export default function ProductsPage() {
                 <Button size="sm" className="h-8 gap-1">
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Add Product
+                    Agregar Producto
                   </span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[625px]">
                 <DialogHeader>
-                  <DialogTitle>Add Product</DialogTitle>
+                  <DialogTitle>Agregar Producto</DialogTitle>
                   <DialogDescription>
-                    Add a new product to your inventory. Click save when you're done.
+                    Agregue un nuevo producto a su inventario. Haga clic en guardar cuando haya terminado.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="name" className="text-right">
-                      Name
+                      Nombre
                     </Label>
-                    <Input id="name" placeholder="Product Name" className="col-span-3" />
+                    <Input id="name" placeholder="Nombre del Producto" className="col-span-3" />
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="sku" className="text-right">
@@ -91,39 +91,39 @@ export default function ProductsPage() {
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="barcode" className="text-right">
-                      Barcode
+                      Código de Barras
                     </Label>
                     <Input id="barcode" placeholder="123456789012" className="col-span-3" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="description" className="text-right">
-                      Description
+                      Descripción
                     </Label>
-                    <Textarea id="description" placeholder="Product description..." className="col-span-3" />
+                    <Textarea id="description" placeholder="Descripción del producto..." className="col-span-3" />
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right">Category</Label>
+                    <Label className="text-right">Categoría</Label>
                     <Select>
                       <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select category" />
+                        <SelectValue placeholder="Seleccionar categoría" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cat1">Category 1</SelectItem>
-                        <SelectItem value="cat2">Category 2</SelectItem>
+                        <SelectItem value="cat1">Categoría 1</SelectItem>
+                        <SelectItem value="cat2">Categoría 2</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="cost" className="text-right">Cost Price</Label>
+                    <Label htmlFor="cost" className="text-right">Precio de Costo</Label>
                     <Input id="cost" type="number" placeholder="10.00" className="col-span-3" />
                   </div>
                    <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="sale" className="text-right">Sale Price</Label>
+                    <Label htmlFor="sale" className="text-right">Precio de Venta</Label>
                     <Input id="sale" type="number" placeholder="20.00" className="col-span-3" />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button type="submit">Save product</Button>
+                  <Button type="submit">Guardar producto</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -131,9 +131,9 @@ export default function ProductsPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Products</CardTitle>
+            <CardTitle>Productos</CardTitle>
             <CardDescription>
-              Manage your products and view their sales performance.
+              Gestione sus productos y vea su rendimiento de ventas.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -141,18 +141,18 @@ export default function ProductsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="hidden w-[100px] sm:table-cell">
-                    <span className="sr-only">Image</span>
+                    <span className="sr-only">Imagen</span>
                   </TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Estado</TableHead>
                   <TableHead className="hidden md:table-cell">
-                    Price
+                    Precio
                   </TableHead>
                   <TableHead className="hidden md:table-cell">
-                    Stock
+                    Existencias
                   </TableHead>
                   <TableHead>
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">Acciones</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -161,7 +161,7 @@ export default function ProductsPage() {
                 <TableRow key={i}>
                   <TableCell className="hidden sm:table-cell">
                     <Image
-                      alt="Product image"
+                      alt="Imagen del producto"
                       className="aspect-square rounded-md object-cover"
                       height="64"
                       src={`https://placehold.co/64x64/2D3748/F7FAFC?text=P${i+1}`}
@@ -170,10 +170,10 @@ export default function ProductsPage() {
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                    Product Name {i+1}
+                    Nombre del Producto {i+1}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">Active</Badge>
+                    <Badge variant="outline">Activo</Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     $499.99
@@ -190,13 +190,13 @@ export default function ProductsPage() {
                           variant="ghost"
                         >
                           <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
+                          <span className="sr-only">Alternar menú</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem>Delete</DropdownMenuItem>
+                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                        <DropdownMenuItem>Editar</DropdownMenuItem>
+                        <DropdownMenuItem>Eliminar</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -207,8 +207,8 @@ export default function ProductsPage() {
           </CardContent>
           <CardFooter>
             <div className="text-xs text-muted-foreground">
-              Showing <strong>1-10</strong> of <strong>32</strong>{" "}
-              products
+              Mostrando <strong>1-10</strong> de <strong>32</strong>{" "}
+              productos
             </div>
           </CardFooter>
         </Card>

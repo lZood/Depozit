@@ -36,54 +36,54 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Today's Sales
+              Ventas de Hoy
             </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">$1,329.00</div>
             <p className="text-xs text-muted-foreground">
-              +20.1% from yesterday
+              +20.1% desde ayer
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Gross Profit
+              Ganancia Bruta
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">$450.30</div>
             <p className="text-xs text-muted-foreground">
-              +18.1% from yesterday
+              +18.1% desde ayer
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total in Cash</CardTitle>
+            <CardTitle className="text-sm font-medium">Total en Efectivo</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">$5,231.89</div>
             <p className="text-xs text-muted-foreground">
-              +19% from yesterday
+              +19% desde ayer
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Open Carts
+              Carritos Abiertos
             </CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+5</div>
             <p className="text-xs text-muted-foreground">
-              +2 since last hour
+              +2 desde la última hora
             </p>
           </CardContent>
         </Card>
@@ -91,7 +91,7 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Sales Overview</CardTitle>
+            <CardTitle>Resumen de Ventas</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
             <SalesChart />
@@ -99,9 +99,9 @@ export default function Dashboard() {
         </Card>
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Recent Sales</CardTitle>
+            <CardTitle>Ventas Recientes</CardTitle>
             <CardDescription>
-              You made 26 sales today.
+              Hiciste 26 ventas hoy.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -138,34 +138,34 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
-              Inventory Alerts
+              Alertas de Inventario
             </CardTitle>
             <Link
               href="/dashboard/inventory"
               className="text-sm text-accent-foreground hover:underline"
             >
-              View All
+              Ver Todo
             </Link>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead className="text-right">Existencias</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell>Premium Coffee Beans</TableCell>
+                  <TableCell>Granos de Café Premium</TableCell>
                   <TableCell className="text-right"><Badge variant="destructive">5</Badge></TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell>Organic Tea Bags</TableCell>
+                  <TableCell>Bolsitas de Té Orgánico</TableCell>
                   <TableCell className="text-right"><Badge variant="destructive">2</Badge></TableCell>
                 </TableRow>
                  <TableRow>
-                  <TableCell>Artisan Bread Loaf</TableCell>
+                  <TableCell>Pan Artesanal</TableCell>
                   <TableCell className="text-right"><Badge variant="destructive">8</Badge></TableCell>
                 </TableRow>
               </TableBody>
@@ -175,34 +175,34 @@ export default function Dashboard() {
          <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
-              Top Products
+              Productos Principales
             </CardTitle>
              <Link
               href="/dashboard/products"
               className="text-sm text-accent-foreground hover:underline"
             >
-              View All
+              Ver Todo
             </Link>
           </CardHeader>
           <CardContent>
              <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Sales</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead className="text-right">Ventas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell>Croissants (Box of 6)</TableCell>
+                  <TableCell>Croissants (Caja de 6)</TableCell>
                   <TableCell className="text-right">120</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell>Mineral Water (500ml)</TableCell>
+                  <TableCell>Agua Mineral (500ml)</TableCell>
                   <TableCell className="text-right">98</TableCell>
                 </TableRow>
                  <TableRow>
-                  <TableCell>Fresh Orange Juice (1L)</TableCell>
+                  <TableCell>Jugo de Naranja Fresco (1L)</TableCell>
                   <TableCell className="text-right">75</TableCell>
                 </TableRow>
               </TableBody>

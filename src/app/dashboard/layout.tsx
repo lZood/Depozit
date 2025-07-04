@@ -39,23 +39,23 @@ export default function DashboardLayout({
   const pathname = usePathname();
 
   const navItems = [
-    { href: "/dashboard", icon: Home, label: "Dashboard" },
-    { href: "/dashboard/sell", icon: ShoppingCart, label: "Sell" },
-    { href: "/dashboard/products", icon: Package, label: "Products" },
-    { href: "/dashboard/orders", icon: Truck, label: "Purchase Orders" },
-    { href: "/dashboard/inventory", icon: Warehouse, label: "Inventory" },
-    { href: "/dashboard/reports", icon: LineChart, label: "Reports" },
-    { href: "/dashboard/customers", icon: Users, label: "Customers" },
-    { href: "/dashboard/suppliers", icon: Building, label: "Suppliers" },
+    { href: "/dashboard", icon: Home, label: "Panel" },
+    { href: "/dashboard/sell", icon: ShoppingCart, label: "Vender" },
+    { href: "/dashboard/products", icon: Package, label: "Productos" },
+    { href: "/dashboard/orders", icon: Truck, label: "Órdenes de Compra" },
+    { href: "/dashboard/inventory", icon: Warehouse, label: "Inventario" },
+    { href: "/dashboard/reports", icon: LineChart, label: "Reportes" },
+    { href: "/dashboard/customers", icon: Users, label: "Clientes" },
+    { href: "/dashboard/suppliers", icon: Building, label: "Proveedores" },
   ];
 
   const settingsNav = {
     href: "/dashboard/settings",
     icon: Settings,
-    label: "Settings",
+    label: "Configuración",
   };
   
-  const pageTitle = [...navItems, settingsNav].find(item => pathname === item.href)?.label || "Dashboard";
+  const pageTitle = [...navItems, settingsNav].find(item => pathname === item.href)?.label || "Panel";
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -102,7 +102,7 @@ export default function DashboardLayout({
             <SheetTrigger asChild>
               <Button size="icon" variant="outline" className="sm:hidden">
                 <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
+                <span className="sr-only">Alternar Menú</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs">
@@ -145,7 +145,7 @@ export default function DashboardLayout({
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search products..."
+              placeholder="Buscar productos..."
               className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
             />
           </div>
@@ -167,13 +167,13 @@ export default function DashboardLayout({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
+              <DropdownMenuLabel>Cuenta de Administrador</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild><Link href="/dashboard/settings">Settings</Link></DropdownMenuItem>
-              <DropdownMenuItem>Support</DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/dashboard/settings">Configuración</Link></DropdownMenuItem>
+              <DropdownMenuItem>Soporte</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/">Logout</Link>
+                <Link href="/">Cerrar sesión</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -16,26 +16,26 @@ export default function LoginPage() {
             </div>
             <CardTitle className="text-2xl font-bold">Depozit</CardTitle>
             <CardDescription>
-              Welcome back! Please enter your details.
+              ¡Bienvenido de nuevo! Por favor, ingrese sus datos.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="name@example.com" required />
+                <Label htmlFor="email">Correo electrónico</Label>
+                <Input id="email" type="email" placeholder="nombre@ejemplo.com" required />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password">Contraseña</Label>
                   <Link href="#" className="text-sm font-medium text-primary hover:underline">
-                    Forgot password?
+                    ¿Olvidó su contraseña?
                   </Link>
                 </div>
                 <Input id="password" type="password" required />
               </div>
               <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                <Link href="/dashboard">Sign In</Link>
+                <Link href="/dashboard">Iniciar sesión</Link>
               </Button>
             </form>
           </CardContent>
