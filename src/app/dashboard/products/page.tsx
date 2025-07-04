@@ -28,24 +28,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 
-// Conditionally define the file schema to avoid SSR errors with browser-specific APIs like `File`.
-const fileSchema = typeof window === "undefined" ? z.any() : z.instanceof(File);
-
-const productFormSchema = z.object({
-  name: z.string().min(1, "El nombre es obligatorio."),
-  sku: z.string().min(1, "El SKU es obligatorio."),
-  barcode: z.string().optional(),
-  description: z.string().optional(),
-  category_id: z.string().optional(),
-  cost_price: z.coerce.number().min(0, "El precio debe ser positivo.").optional(),
-  sale_price: z.coerce.number().min(0.01, "El precio de venta es obligatorio y debe ser mayor a 0."),
-  stock: z.coerce.number().int("Las existencias deben ser un número entero.").min(0, "Las existencias no pueden ser negativas."),
-  image_file: fileSchema.optional(),
-});
-
-type ProductFormValues = z.infer<typeof productFormSchema>;
-
-
 type Product = {
   id: string;
   name: string;
@@ -61,6 +43,20 @@ type Category = {
 };
 
 export default function ProductsPage() {
+  const productFormSchema = z.object({
+    name: z.string().min(1, "El nombre es obligatorio."),
+    sku: z.string().min(1, "El SKU es obligatorio."),
+    barcode: z.string().optional(),
+    description: z.string().optional(),
+    category_id: z.string().optional(),
+    cost_price: z.coerce.number().min(0, "El precio debe ser positivo.").optional(),
+    sale_price: z.coerce.number().min(0.01, "El precio de venta es obligatorio y debe ser mayor a 0."),
+    stock: z.coerce.number().int("Las existencias deben ser un número entero.").min(0, "Las existencias no pueden ser negativas."),
+    image_file: z.instanceof(File).optional(),
+  });
+  
+  type ProductFormValues = z.infer<typeof productFormSchema>;
+
   const [products, setProducts] = React.useState<Product[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -80,7 +76,7 @@ export default function ProductsPage() {
       description: "",
       category_id: "",
       cost_price: 0,
-      sale_price: undefined,
+      sale_price: 0,
       stock: 0,
       image_file: undefined,
     },
