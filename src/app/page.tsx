@@ -46,8 +46,8 @@ export default function LoginPage() {
       console.log("[LoginPage] Supabase auth success:", data);
       setLoadingMessage('¡Éxito! Redirigiendo al panel...');
       console.log("[LoginPage] Redirecting to /dashboard...");
-      // On successful login, redirect to the dashboard.
-      router.push('/dashboard');
+      // Use window.location.href for a full page navigation, which is more reliable in iframes.
+      window.location.href = '/dashboard';
     }
   };
 
