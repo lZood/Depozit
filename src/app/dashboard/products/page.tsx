@@ -18,8 +18,68 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { createClient } from "@/lib/supabase/client"
+import { Skeleton } from "@/components/ui/skeleton"
+
+type Product = {
+  id: string;
+  name: string;
+  status: 'active' | 'draft' | 'archived';
+  sale_price: number;
+  stock: number;
+};
 
 export default function ProductsPage() {
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const supabase = createClient();
+
+  React.useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, status, sale_price, stock')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error al obtener productos:', error);
+      } else if (data) {
+        setProducts(data as Product[]);
+      }
+      setLoading(false);
+    };
+
+    fetchProducts();
+  }, []);
+
+  const getStatusVariant = (status: Product['status']) => {
+    switch (status) {
+      case 'active':
+        return 'outline';
+      case 'draft':
+        return 'secondary';
+      case 'archived':
+        return 'destructive';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusText = (status: Product['status']) => {
+    switch (status) {
+      case 'active':
+        return 'Activo';
+      case 'draft':
+        return 'Borrador';
+      case 'archived':
+        return 'Archivado';
+      default:
+        return status;
+    }
+  };
+
+
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
       <Tabs defaultValue="all">
@@ -157,57 +217,80 @@ export default function ProductsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {[...Array(5)].map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell className="hidden sm:table-cell">
-                    <Image
-                      alt="Imagen del producto"
-                      className="aspect-square rounded-md object-cover"
-                      height="64"
-                      src={`https://placehold.co/64x64/2D3748/F7FAFC?text=P${i+1}`}
-                      width="64"
-                      data-ai-hint="product photo"
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    Nombre del Producto {i+1}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">Activo</Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    $499.99
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {25 + i*5}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          aria-haspopup="true"
-                          size="icon"
-                          variant="ghost"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Alternar menú</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Eliminar</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-                ))}
+                 {loading ? (
+                  [...Array(5)].map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="hidden sm:table-cell">
+                        <Skeleton className="h-16 w-16 rounded-md" />
+                      </TableCell>
+                      <TableCell><Skeleton className="h-6 w-48" /></TableCell>
+                      <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                      <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-16" /></TableCell>
+                      <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-12" /></TableCell>
+                      <TableCell>
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : products.length > 0 ? (
+                  products.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="hidden sm:table-cell">
+                        <Image
+                          alt="Imagen del producto"
+                          className="aspect-square rounded-md object-cover"
+                          height="64"
+                          src={`https://placehold.co/64x64.png`}
+                          width="64"
+                          data-ai-hint="product photo"
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {product.name}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusVariant(product.status)}>{getStatusText(product.status)}</Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        ${product.sale_price.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {product.stock}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              aria-haspopup="true"
+                              size="icon"
+                              variant="ghost"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Alternar menú</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                            <DropdownMenuItem>Editar</DropdownMenuItem>
+                            <DropdownMenuItem>Eliminar</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center h-24">
+                      No se encontraron productos. Comience agregando uno nuevo.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
           <CardFooter>
             <div className="text-xs text-muted-foreground">
-              Mostrando <strong>1-10</strong> de <strong>32</strong>{" "}
+              Mostrando <strong>{products.length}</strong> de <strong>{products.length}</strong>{" "}
               productos
             </div>
           </CardFooter>
