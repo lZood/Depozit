@@ -15,6 +15,7 @@ import {
   Settings,
   PanelLeft,
   Search,
+  LayoutGrid,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -47,14 +48,15 @@ export default function DashboardLayoutClient({
   const handleLogout = async () => {
     console.log('[DashboardLayoutClient] Logging out...');
     await supabase.auth.signOut();
-    console.log('[DashboardLayoutClient] Logout complete. Redirecting to login page.');
-    router.push('/');
+    // Forzamos una navegación completa para asegurar que el estado se limpie.
+    window.location.href = '/';
   };
 
   const allNavItems = [
     { href: "/dashboard", icon: Home, label: "Panel", roles: ['admin', 'employee'] },
     { href: "/dashboard/sell", icon: ShoppingCart, label: "Vender", roles: ['admin', 'employee'] },
     { href: "/dashboard/products", icon: Package, label: "Productos", roles: ['admin', 'employee'] },
+    { href: "/dashboard/categories", icon: LayoutGrid, label: "Categorías", roles: ['admin', 'employee'] },
     { href: "/dashboard/orders", icon: Truck, label: "Órdenes de Compra", roles: ['admin'] },
     { href: "/dashboard/inventory", icon: Warehouse, label: "Inventario", roles: ['admin', 'employee'] },
     { href: "/dashboard/reports", icon: LineChart, label: "Reportes", roles: ['admin'] },
