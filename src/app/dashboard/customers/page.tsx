@@ -53,16 +53,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const customerFormSchema = z.object({
   full_name: z.string().min(1, "El nombre completo es obligatorio."),
   email: z.string().email("Por favor, ingrese un correo electrónico válido.").optional().or(z.literal('')),
   phone: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -72,8 +74,17 @@ type Customer = {
   full_name: string;
   email: string | null;
   phone: string | null;
+  notes: string | null;
   created_at: string;
 };
+
+const getInitials = (name: string) => {
+  if (!name) return "";
+  const names = name.split(' ');
+  const initials = names.map(n => n[0]).join('');
+  return initials.substring(0, 2).toUpperCase();
+}
+
 
 export default function CustomersPage() {
   const [customers, setCustomers] = React.useState<Customer[]>([]);
@@ -92,6 +103,7 @@ export default function CustomersPage() {
       full_name: "",
       email: "",
       phone: "",
+      notes: "",
     },
   });
 
@@ -121,7 +133,7 @@ export default function CustomersPage() {
 
   const handleAddNewClick = () => {
     setEditingCustomer(null);
-    form.reset({ full_name: "", email: "", phone: "" });
+    form.reset({ full_name: "", email: "", phone: "", notes: "" });
     setDialogOpen(true);
   };
 
@@ -131,6 +143,7 @@ export default function CustomersPage() {
       full_name: customer.full_name,
       email: customer.email || "",
       phone: customer.phone || "",
+      notes: customer.notes || "",
     });
     setDialogOpen(true);
   };
@@ -172,6 +185,7 @@ export default function CustomersPage() {
       full_name: values.full_name,
       email: values.email || null,
       phone: values.phone || null,
+      notes: values.notes || null,
     };
 
     const mutation = editingCustomer
@@ -245,14 +259,14 @@ export default function CustomersPage() {
                     <TableCell>
                       <div className="flex items-center gap-4">
                         <Avatar className="hidden h-9 w-9 sm:flex">
-                           <AvatarImage src={`https://placehold.co/36x36.png`} data-ai-hint="person avatar" />
-                           <AvatarFallback>{customer.full_name.charAt(0)}</AvatarFallback>
+                           <AvatarFallback>{getInitials(customer.full_name)}</AvatarFallback>
                         </Avatar>
                         <div className="grid gap-1">
                           <p className="text-sm font-medium leading-none">{customer.full_name}</p>
                           <p className="text-sm text-muted-foreground">
                             {customer.email || 'Sin correo'}
                           </p>
+                          {customer.notes && <p className="text-xs text-muted-foreground italic">{customer.notes}</p>}
                         </div>
                       </div>
                     </TableCell>
@@ -332,6 +346,19 @@ export default function CustomersPage() {
                       <FormLabel>Teléfono (Opcional)</FormLabel>
                       <FormControl>
                         <Input placeholder="Ej. 55 1234 5678" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notas (Opcional)</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Ej. Taquería 'El Buen Gusto'" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
