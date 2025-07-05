@@ -1,6 +1,8 @@
 "use client"
 
-import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 
 import {
   ChartConfig,
@@ -9,20 +11,10 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-const chartData = [
-  { month: "Enero", sales: 1860 },
-  { month: "Febrero", sales: 3050 },
-  { month: "Marzo", sales: 2370 },
-  { month: "Abril", sales: 730 },
-  { month: "Mayo", sales: 2090 },
-  { month: "Junio", sales: 2140 },
-  { month: "Julio", sales: 2860 },
-  { month: "Agosto", sales: 3250 },
-  { month: "Septiembre", sales: 2570 },
-  { month: "Octubre", sales: 1730 },
-  { month: "Noviembre", sales: 2890 },
-  { month: "Diciembre", sales: 3140 },
-]
+type ChartData = {
+    date: string;
+    sales: number;
+}
 
 const chartConfig = {
   sales: {
@@ -31,21 +23,41 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-export function SalesChart() {
+export function SalesChart({ data }: { data: ChartData[] }) {
+  
+  const formattedData = data.map(item => ({
+    ...item,
+    // Supabase date is 'YYYY-MM-DD', we need to add 'T00:00:00' to parse it correctly as local time
+    date: format(new Date(`${item.date}T00:00:00`), "d MMM", { locale: es }),
+  }))
+
   return (
     <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-      <BarChart accessibilityLayer data={chartData} margin={{ top: 20, right: 20, bottom: 10, left: 10 }}>
+      <BarChart 
+        accessibilityLayer 
+        data={formattedData} 
+        margin={{ top: 20, right: 20, bottom: 10, left: -10 }}
+      >
         <CartesianGrid vertical={false} />
         <XAxis
-          dataKey="month"
+          dataKey="date"
           tickLine={false}
           tickMargin={10}
           axisLine={false}
-          tickFormatter={(value) => value.slice(0, 3)}
+        />
+         <YAxis
+          tickLine={false}
+          axisLine={false}
+          tickMargin={10}
+          tickFormatter={(value) => `$${new Intl.NumberFormat('es-MX', {notation: 'compact'}).format(value)}`}
         />
         <ChartTooltip
           cursor={false}
-          content={<ChartTooltipContent indicator="dot" />}
+          content={<ChartTooltipContent 
+            indicator="dot" 
+            formatter={(value) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value as number)}
+            labelClassName="font-bold"
+          />}
         />
         <Bar dataKey="sales" fill="var(--color-sales)" radius={4} />
       </BarChart>
