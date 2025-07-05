@@ -47,7 +47,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog";
 import {
     AlertDialog,
@@ -250,12 +249,10 @@ export default function SettingsPage() {
                     </CardDescription>
                 </div>
                 <div className="ml-auto">
-                    <DialogTrigger asChild>
-                        <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Crear Usuario
-                        </Button>
-                    </DialogTrigger>
+                    <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Crear Usuario
+                    </Button>
                 </div>
              </div>
           </CardHeader>
