@@ -1,7 +1,8 @@
+
 "use client";
 
 import * as React from "react";
-import { MoreHorizontal, PlusCircle, CheckCircle, Search, Filter, Calendar as CalendarIcon } from "lucide-react";
+import { MoreHorizontal, PlusCircle, CheckCircle, Search, Filter, Calendar as CalendarIcon, XCircle } from "lucide-react";
 import { format, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -76,7 +77,8 @@ export default function OrdersPage() {
   const [filteredOrders, setFilteredOrders] = React.useState<PurchaseOrder[]>([]);
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [dialogState, setDialogState] = React.useState<{ open: boolean, orderId: string | null }>({ open: false, orderId: null });
+  const [receiveDialogState, setReceiveDialogState] = React.useState<{ open: boolean, orderId: string | null }>({ open: false, orderId: null });
+  const [cancelDialogState, setCancelDialogState] = React.useState<{ open: boolean, orderId: string | null }>({ open: false, orderId: null });
 
   const [activeTab, setActiveTab] = React.useState("all");
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -151,10 +153,10 @@ export default function OrdersPage() {
   }, [searchQuery, allOrders]);
 
   const handleReceiveOrder = async () => {
-    if (!dialogState.orderId) return;
+    if (!receiveDialogState.orderId) return;
 
     const { error } = await supabase.rpc('receive_purchase_order', {
-      p_order_id: dialogState.orderId
+      p_order_id: receiveDialogState.orderId
     });
 
     if (error) {
@@ -170,9 +172,32 @@ export default function OrdersPage() {
       });
       fetchOrders();
     }
-    setDialogState({ open: false, orderId: null });
+    setReceiveDialogState({ open: false, orderId: null });
   };
   
+  const handleCancelOrder = async () => {
+    if (!cancelDialogState.orderId) return;
+
+    const { error } = await supabase.rpc('cancel_purchase_order', {
+        p_order_id: cancelDialogState.orderId
+    });
+
+    if (error) {
+      toast({
+        title: "Error al cancelar la orden",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Éxito",
+        description: "Orden de compra cancelada correctamente.",
+      });
+      fetchOrders();
+    }
+    setCancelDialogState({ open: false, orderId: null });
+  };
+
   const getStatusVariant = (status: PurchaseOrder['status']): 'secondary' | 'outline' | 'destructive' => {
       switch(status) {
           case 'pending': return 'secondary';
@@ -355,10 +380,20 @@ export default function OrdersPage() {
                               <Link href={`/dashboard/orders/${order.id}`}>Ver Detalles</Link>
                             </DropdownMenuItem>
                             {order.status === 'pending' && (
-                              <DropdownMenuItem onSelect={() => setDialogState({open: true, orderId: order.id})}>
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Marcar como Recibida
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuItem onSelect={() => setReceiveDialogState({open: true, orderId: order.id})}>
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Marcar como Recibida
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onSelect={() => setCancelDialogState({open: true, orderId: order.id})}
+                                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Cancelar Orden
+                                </DropdownMenuItem>
+                              </>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -378,7 +413,7 @@ export default function OrdersPage() {
         </Card>
       </Tabs>
 
-      <AlertDialog open={dialogState.open} onOpenChange={(open) => setDialogState({ ...dialogState, open })}>
+      <AlertDialog open={receiveDialogState.open} onOpenChange={(open) => setReceiveDialogState({ ...receiveDialogState, open })}>
           <AlertDialogContent>
               <AlertDialogHeader>
                   <AlertDialogTitle>¿Confirmar Recepción de Mercancía?</AlertDialogTitle>
@@ -387,11 +422,30 @@ export default function OrdersPage() {
                   </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => setDialogState({open: false, orderId: null})}>Cancelar</AlertDialogCancel>
+                  <AlertDialogCancel onClick={() => setReceiveDialogState({open: false, orderId: null})}>Cancelar</AlertDialogCancel>
                   <AlertDialogAction onClick={handleReceiveOrder}>Confirmar</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={cancelDialogState.open} onOpenChange={(open) => setCancelDialogState({ ...cancelDialogState, open })}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>¿Está seguro de que desea cancelar esta orden?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Esta acción no se puede deshacer. La orden se marcará como "Cancelada" y no se podrá recibir mercancía de ella. El stock no será afectado.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setCancelDialogState({open: false, orderId: null})}>Cerrar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleCancelOrder} className="bg-red-600 hover:bg-red-700">
+                      Confirmar Cancelación
+                  </AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
       </AlertDialog>
     </>
   );
 }
+
+    
