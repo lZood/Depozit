@@ -51,6 +51,7 @@ type Product = {
   sku: string | null;
   sale_price: number;
   stock: number;
+  cost_price: number;
 };
 
 type CartItem = Product & {
@@ -75,7 +76,7 @@ export default function SellPage() {
     setLoadingSearch(true);
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, sku, sale_price, stock")
+      .select("id, name, sku, sale_price, stock, cost_price")
       .or(`name.ilike.%${query}%,sku.ilike.%${query}%`)
       .eq('status', 'active')
       .limit(10);
@@ -152,7 +153,8 @@ export default function SellPage() {
     const saleItems = cart.map(item => ({
         product_id: item.id,
         quantity: item.quantity,
-        sale_price: item.sale_price
+        sale_price: item.sale_price,
+        cost_price: item.cost_price || 0
     }));
 
     const { data: saleId, error } = await supabase.rpc('process_sale', {
