@@ -4,6 +4,13 @@
 import * as React from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  MoreHorizontal,
+  PlusCircle,
+} from "lucide-react";
 
 import {
   Card,
@@ -21,6 +28,38 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -29,13 +68,23 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
 
 type UserWithRole = {
   id: string;
   email: string | null;
   role: "admin" | "employee";
 };
+
+const newUserFormSchema = z.object({
+  email: z.string().email("Debe ser un correo electrónico válido."),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
+  role: z.enum(["admin", "employee"], { required_error: "Debe seleccionar un rol."}),
+});
+type NewUserFormValues = z.infer<typeof newUserFormSchema>;
 
 const getInitials = (email: string | null) => {
   if (!email) return "??";
@@ -46,9 +95,19 @@ export default function SettingsPage() {
   const [users, setUsers] = React.useState<UserWithRole[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [currentUser, setCurrentUser] = React.useState<{ id: string } | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
+  const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [userToDelete, setUserToDelete] = React.useState<UserWithRole | null>(null);
 
   const supabase = createClient();
   const { toast } = useToast();
+  
+  const form = useForm<NewUserFormValues>({
+    resolver: zodResolver(newUserFormSchema),
+    defaultValues: { email: "", password: "", role: "employee" },
+  });
 
   const fetchUsers = React.useCallback(async () => {
     setLoading(true);
@@ -65,7 +124,7 @@ export default function SettingsPage() {
     if (error) {
       toast({
         title: "Error al cargar usuarios",
-        description: "No se pudieron obtener los datos de los usuarios. Asegúrese de que las funciones de Supabase estén implementadas.",
+        description: error.message,
         variant: "destructive",
       });
     } else {
@@ -80,8 +139,6 @@ export default function SettingsPage() {
 
   const handleRoleChange = async (userId: string, newRole: "admin" | "employee") => {
     const originalUsers = [...users];
-    
-    // Optimistic UI update
     setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
 
     const { error } = await supabase.rpc("update_user_role", {
@@ -90,104 +147,244 @@ export default function SettingsPage() {
     });
 
     if (error) {
-      toast({
-        title: "Error al actualizar rol",
-        description: error.message,
-        variant: "destructive",
-      });
-      // Revert optimistic update on error
+      toast({ title: "Error al actualizar rol", description: error.message, variant: "destructive" });
       setUsers(originalUsers);
     } else {
-      toast({
-        title: "Rol actualizado",
-        description: "El rol del usuario ha sido cambiado exitosamente.",
-      });
-      // Optional: refetch to ensure data is in sync
-      // fetchUsers(); 
+      toast({ title: "Rol actualizado", description: "El rol del usuario ha sido cambiado." });
     }
   };
 
+  async function onCreateUserSubmit(values: NewUserFormValues) {
+    setIsSubmitting(true);
+    const { error } = await supabase.rpc('create_new_user', {
+        p_email: values.email,
+        p_password: values.password,
+        p_role: values.role
+    });
+
+    if (error) {
+        toast({ title: "Error al crear usuario", description: error.message, variant: "destructive" });
+    } else {
+        toast({ title: "Usuario creado", description: "El nuevo usuario ha sido agregado." });
+        setCreateDialogOpen(false);
+        form.reset();
+        await fetchUsers();
+    }
+    setIsSubmitting(false);
+  }
+
+  const handleDeleteClick = (user: UserWithRole) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    
+    const { error } = await supabase.rpc('delete_app_user', {
+        p_user_id_to_delete: userToDelete.id
+    });
+
+    if (error) {
+        toast({ title: "Error al eliminar usuario", description: error.message, variant: "destructive" });
+    } else {
+        toast({ title: "Usuario Eliminado", description: "El usuario ha sido eliminado correctamente."});
+        await fetchUsers();
+    }
+    setDeleteDialogOpen(false);
+    setUserToDelete(null);
+  };
+
+
   return (
-    <div className="grid flex-1 items-start gap-4 md:gap-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Gestión de Usuarios</CardTitle>
-          <CardDescription>
-            Administra los roles y permisos de los usuarios de la aplicación.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Usuario</TableHead>
-                <TableHead className="w-[180px]">Rol</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                [...Array(3)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell>
-                      <div className="flex items-center gap-4">
-                        <Skeleton className="h-10 w-10 rounded-full" />
-                        <div className="space-y-1">
-                          <Skeleton className="h-4 w-48" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-9 w-full" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : users.length > 0 ? (
-                users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-4">
-                        <Avatar>
-                          <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{user.email}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                       {user.id === currentUser?.id ? (
-                           <Badge variant="secondary" className="text-base font-medium">
-                            {user.role === 'admin' ? 'Administrador' : 'Empleado'}
-                           </Badge>
-                       ) : (
-                        <Select
-                          value={user.role}
-                          onValueChange={(value: "admin" | "employee") =>
-                            handleRoleChange(user.id, value)
-                          }
-                          disabled={user.id === currentUser?.id}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccionar rol" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Administrador</SelectItem>
-                            <SelectItem value="employee">Empleado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                       )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
+    <>
+      <div className="grid flex-1 items-start gap-4 md:gap-8">
+        <Card>
+          <CardHeader>
+             <div className="flex items-center">
+                <div>
+                    <CardTitle>Gestión de Usuarios</CardTitle>
+                    <CardDescription>
+                        Administra los roles y permisos de los usuarios de la aplicación.
+                    </CardDescription>
+                </div>
+                <div className="ml-auto">
+                    <DialogTrigger asChild>
+                        <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Crear Usuario
+                        </Button>
+                    </DialogTrigger>
+                </div>
+             </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={2} className="h-24 text-center">
-                    No se encontraron usuarios.
-                  </TableCell>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Acciones</span>
+                  </TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  [...Array(3)].map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="flex items-center gap-4">
+                          <Skeleton className="h-10 w-10 rounded-full" />
+                          <div className="space-y-1"><Skeleton className="h-4 w-48" /></div>
+                        </div>
+                      </TableCell>
+                      <TableCell><Skeleton className="h-6 w-24 rounded-md" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-8 rounded-full float-right" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : users.length > 0 ? (
+                  users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-4">
+                          <Avatar>
+                            <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium">{user.email}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="capitalize">{user.role === 'admin' ? 'Administrador' : 'Empleado'}</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                         {user.id !== currentUser?.id && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                        <MoreHorizontal className="h-4 w-4" />
+                                        <span className="sr-only">Alternar menú</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                    <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Cambiar Rol</DropdownMenuSubTrigger>
+                                        <DropdownMenuSubContent>
+                                            <DropdownMenuRadioGroup value={user.role} onValueChange={(value) => handleRoleChange(user.id, value as "admin" | "employee")}>
+                                                <DropdownMenuRadioItem value="admin">Administrador</DropdownMenuRadioItem>
+                                                <DropdownMenuRadioItem value="employee">Empleado</DropdownMenuRadioItem>
+                                            </DropdownMenuRadioGroup>
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuSub>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                        Eliminar Usuario
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                         )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="h-24 text-center">
+                      No se encontraron usuarios.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+                <DialogDescription>
+                    Complete el formulario para agregar un nuevo miembro al equipo.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onCreateUserSubmit)} className="space-y-4">
+                    <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Correo Electrónico</FormLabel>
+                                <FormControl>
+                                    <Input type="email" placeholder="nombre@ejemplo.com" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Contraseña</FormLabel>
+                                <FormControl>
+                                    <Input type="password" placeholder="••••••••" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Rol</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccionar un rol" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    <SelectItem value="employee">Empleado</SelectItem>
+                                    <SelectItem value="admin">Administrador</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancelar</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? "Creando..." : "Crear Usuario"}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
+      
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Esto eliminará permanentemente la cuenta del usuario
+                    y todos sus datos asociados.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+                    Confirmar Eliminación
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
