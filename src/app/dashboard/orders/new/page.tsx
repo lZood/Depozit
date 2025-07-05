@@ -66,10 +66,16 @@ export default function NewOrderPage() {
       items: [],
     },
   });
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "items",
   });
+
+  const watchedItems = form.watch("items");
+  const total = watchedItems.reduce(
+    (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.cost_price) || 0),
+    0
+  );
 
   React.useEffect(() => {
     async function fetchSuppliers() {
@@ -115,10 +121,6 @@ export default function NewOrderPage() {
     setProductSearch("");
     setSearchResults([]);
   };
-
-  const total = React.useMemo(() => {
-    return form.getValues('items').reduce((acc, item) => acc + item.quantity * item.cost_price, 0);
-  }, [form.watch('items')]);
 
   const onSubmit = async (values: POFormValues) => {
     setIsSubmitting(true);
@@ -207,7 +209,10 @@ export default function NewOrderPage() {
                 </TableHeader>
                 <TableBody>
                   {fields.length > 0 ? (
-                    fields.map((field, index) => (
+                    fields.map((field, index) => {
+                      const currentItem = watchedItems[index];
+                      const subtotal = (Number(currentItem?.quantity) || 0) * (Number(currentItem?.cost_price) || 0);
+                      return (
                       <TableRow key={field.id}>
                         <TableCell className="font-medium">{field.name}</TableCell>
                         <TableCell>
@@ -228,7 +233,7 @@ export default function NewOrderPage() {
                           />
                         </TableCell>
                         <TableCell className="text-right">
-                          ${(form.watch(`items.${index}.quantity`) * form.watch(`items.${index}.cost_price`)).toFixed(2)}
+                          ${subtotal.toFixed(2)}
                         </TableCell>
                         <TableCell>
                             <Button variant="ghost" size="icon" onClick={() => remove(index)}>
@@ -236,7 +241,7 @@ export default function NewOrderPage() {
                             </Button>
                         </TableCell>
                       </TableRow>
-                    ))
+                    )})
                   ) : (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center h-24">
@@ -302,5 +307,3 @@ export default function NewOrderPage() {
     </div>
   );
 }
-
-    
