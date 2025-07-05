@@ -8,6 +8,8 @@ import {
   Minus,
   UserPlus,
   XCircle,
+  DollarSign,
+  CreditCard,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -33,17 +35,6 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 type Product = {
   id: string;
@@ -63,7 +54,6 @@ export default function SellPage() {
   const [searchResults, setSearchResults] = React.useState<Product[]>([]);
   const [loadingSearch, setLoadingSearch] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
-  const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const supabase = createClient();
   const { toast } = useToast();
@@ -143,7 +133,7 @@ export default function SellPage() {
   const subtotal = total / 1.16;
   const tax = total - subtotal;
 
-  const handleProcessSale = async () => {
+  const handleProcessSale = async (paymentMethod: 'efectivo' | 'tarjeta') => {
     if (cart.length === 0) {
         toast({ title: "Carrito vacío", description: "Agrega productos para procesar la venta.", variant: "destructive" });
         return;
@@ -161,7 +151,8 @@ export default function SellPage() {
         p_cart_items: saleItems,
         p_total_amount: total,
         p_tax_amount: tax,
-        p_subtotal_amount: subtotal
+        p_subtotal_amount: subtotal,
+        p_payment_method: paymentMethod,
     });
 
     if (error) {
@@ -176,7 +167,6 @@ export default function SellPage() {
             description: `Venta #${saleId.substring(0, 8)} registrada con éxito.`,
         });
         setCart([]);
-        setPaymentDialogOpen(false);
     }
     setIsProcessing(false);
   };
@@ -332,30 +322,33 @@ export default function SellPage() {
                         <span>${tax.toFixed(2)}</span>
                     </div>
                 </div>
-              <div className="grid grid-cols-2 gap-4 w-full">
-                <Button variant="outline" onClick={() => setCart([])} disabled={cart.length === 0}>
+              <div className="flex flex-col gap-2 w-full pt-2">
+                <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                        onClick={() => handleProcessSale('efectivo')} 
+                        disabled={isProcessing || cart.length === 0}
+                        size="lg"
+                    >
+                        <DollarSign className="mr-2 h-5 w-5" />
+                        {isProcessing ? 'Procesando...' : 'Efectivo'}
+                    </Button>
+                    <Button 
+                        onClick={() => handleProcessSale('tarjeta')} 
+                        disabled={isProcessing || cart.length === 0}
+                        size="lg"
+                    >
+                        <CreditCard className="mr-2 h-5 w-5" />
+                        {isProcessing ? 'Procesando...' : 'Tarjeta'}
+                    </Button>
+                </div>
+                <Button 
+                    variant="outline" 
+                    onClick={() => setCart([])} 
+                    disabled={isProcessing || cart.length === 0}
+                >
                   <XCircle className="mr-2" />
                   Cancelar Venta
                 </Button>
-                <AlertDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-                    <AlertDialogTrigger asChild>
-                        <Button disabled={cart.length === 0}>Procesar Pago</Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Confirmar Venta</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                El total a cobrar es de ${total.toFixed(2)}. ¿Desea continuar?
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isProcessing}>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleProcessSale} disabled={isProcessing}>
-                                {isProcessing ? 'Procesando...' : 'Confirmar Pago'}
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
               </div>
             </CardFooter>
           )}
