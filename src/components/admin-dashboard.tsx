@@ -51,6 +51,7 @@ const formatNumber = (value: number | null | undefined) => {
 
 export default async function AdminDashboard() {
   const supabase = createClient();
+  const timezone = 'America/Mazatlan'; // Define the target timezone
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -68,11 +69,11 @@ export default async function AdminDashboard() {
     lowStockProductsRes,
     topProductsRes
   ] = await Promise.all([
-    supabase.rpc("get_sales_summary", { start_date: today.toISOString(), end_date: tomorrow.toISOString() }).single(),
-    supabase.rpc("get_sales_over_time", { start_date: sevenDaysAgo.toISOString(), end_date: tomorrow.toISOString() }),
+    supabase.rpc("get_sales_summary", { start_date: today.toISOString(), end_date: tomorrow.toISOString(), p_timezone: timezone }).single(),
+    supabase.rpc("get_sales_over_time", { start_date: sevenDaysAgo.toISOString(), end_date: tomorrow.toISOString(), p_timezone: timezone }),
     supabase.rpc('get_recent_sales', { limit_count: 5 }),
     supabase.from('products').select('name, stock').lt('stock', 10).order('stock', { ascending: true }).limit(5),
-    supabase.rpc('get_top_selling_products', { start_date: thirtyDaysAgo.toISOString(), end_date: tomorrow.toISOString(), limit_count: 5 })
+    supabase.rpc('get_top_selling_products', { start_date: thirtyDaysAgo.toISOString(), end_date: tomorrow.toISOString(), limit_count: 5, p_timezone: timezone })
   ]);
   
   const salesSummary = salesSummaryRes.data;

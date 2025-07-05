@@ -95,19 +95,26 @@ export default function ReportsPage() {
 
       const startDate = date.from.toISOString();
       const endDate = addDays(date.to, 1).toISOString();
+      const timezone = 'America/Mazatlan'; // Define the target timezone
+
+      const rpcParams = { 
+          start_date: startDate, 
+          end_date: endDate,
+          p_timezone: timezone 
+      };
 
       const reportsToFetch = [
         // Sales reports
-        supabase.rpc("get_sales_summary", { start_date: startDate, end_date: endDate }).single(),
-        supabase.rpc("get_sales_over_time", { start_date: startDate, end_date: endDate }),
-        supabase.rpc("get_top_selling_products", { start_date: startDate, end_date: endDate, limit_count: 5 }),
+        supabase.rpc("get_sales_summary", { start_date: startDate, end_date: endDate, p_timezone: timezone }).single(),
+        supabase.rpc("get_sales_over_time", { start_date: startDate, end_date: endDate, p_timezone: timezone }),
+        supabase.rpc("get_top_selling_products", { start_date: startDate, end_date: endDate, limit_count: 5, p_timezone: timezone }),
         // Inventory reports
-        supabase.rpc("get_inventory_summary", { start_date: startDate, end_date: endDate }).single(),
-        supabase.rpc("get_inventory_movements_over_time", { start_date: startDate, end_date: endDate }),
-        supabase.rpc("get_top_adjusted_products", { start_date: startDate, end_date: endDate, limit_count: 5 }),
+        supabase.rpc("get_inventory_summary", { start_date: startDate, end_date: endDate, p_timezone: timezone }).single(),
+        supabase.rpc("get_inventory_movements_over_time", { start_date: startDate, end_date: endDate, p_timezone: timezone }),
+        supabase.rpc("get_top_adjusted_products", { start_date: startDate, end_date: endDate, limit_count: 5, p_timezone: timezone }),
         // Performance reports
-        supabase.rpc("get_sales_by_employee", { start_date: startDate, end_date: endDate }),
-        supabase.rpc("get_sales_by_payment_method", { start_date: startDate, end_date: endDate }),
+        supabase.rpc("get_sales_by_employee", { start_date: startDate, end_date: endDate, p_timezone: timezone }),
+        supabase.rpc("get_sales_by_payment_method", { start_date: startDate, end_date: endDate, p_timezone: timezone }),
       ];
 
       const [
@@ -300,5 +307,3 @@ export default function ReportsPage() {
       </Tabs>
     </div>
   );
-
-    
