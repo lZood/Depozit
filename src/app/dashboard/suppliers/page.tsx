@@ -1,10 +1,10 @@
-
 "use client";
 
 import * as React from "react";
 import {
   MoreHorizontal,
   PlusCircle,
+  Search,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -80,6 +80,8 @@ type Supplier = {
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
+  const [filteredSuppliers, setFilteredSuppliers] = React.useState<Supplier[]>([]);
+  const [searchQuery, setSearchQuery] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -123,6 +125,17 @@ export default function SuppliersPage() {
   React.useEffect(() => {
     fetchSuppliers();
   }, []);
+  
+  React.useEffect(() => {
+    const lowercasedQuery = searchQuery.toLowerCase();
+    const results = suppliers.filter(supplier =>
+      supplier.name.toLowerCase().includes(lowercasedQuery) ||
+      (supplier.contact_person && supplier.contact_person.toLowerCase().includes(lowercasedQuery)) ||
+      (supplier.email && supplier.email.toLowerCase().includes(lowercasedQuery))
+    );
+    setFilteredSuppliers(results);
+  }, [searchQuery, suppliers]);
+
 
   const handleAddNewClick = () => {
     setEditingSupplier(null);
@@ -209,15 +222,25 @@ export default function SuppliersPage() {
     <div className="grid flex-1 items-start gap-4 md:gap-8">
       <Card>
         <CardHeader>
-          <div className="flex items-center">
+          <div className="flex items-start md:items-center justify-between gap-4 flex-col md:flex-row">
               <div>
                 <CardTitle>Proveedores</CardTitle>
                 <CardDescription>
                   Gestione su base de datos de proveedores.
                 </CardDescription>
               </div>
-              <div className="ml-auto flex items-center gap-2">
-                <Button size="sm" className="h-8 gap-1" onClick={handleAddNewClick}>
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <div className="relative flex-1 md:flex-initial">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar proveedor..."
+                    className="pl-8 sm:w-[300px] h-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Button size="sm" className="h-9 gap-1" onClick={handleAddNewClick}>
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                     Agregar Proveedor
@@ -250,8 +273,8 @@ export default function SuppliersPage() {
                     </TableCell>
                   </TableRow>
                 ))
-              ) : suppliers.length > 0 ? (
-                suppliers.map((supplier) => (
+              ) : filteredSuppliers.length > 0 ? (
+                filteredSuppliers.map((supplier) => (
                   <TableRow key={supplier.id}>
                     <TableCell>
                       <div className="font-medium">{supplier.name}</div>
@@ -279,7 +302,7 @@ export default function SuppliersPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={4} className="h-24 text-center">
-                    No se encontraron proveedores. Comience agregando uno nuevo.
+                    {searchQuery ? "No se encontraron proveedores." : "No se encontraron proveedores. Comience agregando uno nuevo."}
                   </TableCell>
                 </TableRow>
               )}
@@ -398,5 +421,3 @@ export default function SuppliersPage() {
     </div>
   );
 }
-
-    
