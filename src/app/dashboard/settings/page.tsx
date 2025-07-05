@@ -85,15 +85,6 @@ const newUserFormSchema = z.object({
 });
 type NewUserFormValues = z.infer<typeof newUserFormSchema>;
 
-const passwordFormSchema = z.object({
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
-  confirmPassword: z.string(),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Las contraseñas no coinciden.",
-  path: ["confirmPassword"],
-});
-type PasswordFormValues = z.infer<typeof passwordFormSchema>;
-
 
 const getInitials = (email: string | null) => {
   if (!email) return "??";
@@ -110,21 +101,12 @@ export default function SettingsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [userToDelete, setUserToDelete] = React.useState<UserWithRole | null>(null);
   
-  const [passwordDialogOpen, setPasswordDialogOpen] = React.useState(false);
-  const [userToUpdate, setUserToUpdate] = React.useState<UserWithRole | null>(null);
-
-
   const supabase = createClient();
   const { toast } = useToast();
   
   const newUserForm = useForm<NewUserFormValues>({
     resolver: zodResolver(newUserFormSchema),
     defaultValues: { email: "", password: "", role: "employee" },
-  });
-
-  const passwordForm = useForm<PasswordFormValues>({
-    resolver: zodResolver(passwordFormSchema),
-    defaultValues: { password: "", confirmPassword: "" },
   });
 
   const fetchUsers = React.useCallback(async () => {
@@ -196,12 +178,6 @@ export default function SettingsPage() {
     setDeleteDialogOpen(true);
   };
   
-  const handlePasswordChangeClick = (user: UserWithRole) => {
-    setUserToUpdate(user);
-    passwordForm.reset();
-    setPasswordDialogOpen(true);
-  };
-
   const confirmDelete = async () => {
     if (!userToDelete) return;
     
@@ -218,23 +194,6 @@ export default function SettingsPage() {
     setDeleteDialogOpen(false);
     setUserToDelete(null);
   };
-
-  async function onPasswordSubmit(values: PasswordFormValues) {
-    if (!userToUpdate) return;
-    
-    const { error } = await supabase.rpc('update_user_password', {
-        p_user_id: userToUpdate.id,
-        p_new_password: values.password,
-    });
-
-    if (error) {
-        toast({ title: "Error al cambiar contraseña", description: error.message, variant: "destructive" });
-    } else {
-        toast({ title: "Contraseña actualizada", description: `La contraseña para ${userToUpdate.email} ha sido cambiada.` });
-        setPasswordDialogOpen(false);
-    }
-  }
-
 
   return (
     <>
@@ -306,9 +265,6 @@ export default function SettingsPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                    <DropdownMenuItem onSelect={() => handlePasswordChangeClick(user)}>
-                                        Cambiar Contraseña
-                                    </DropdownMenuItem>
                                     <DropdownMenuSub>
                                         <DropdownMenuSubTrigger>Cambiar Rol</DropdownMenuSubTrigger>
                                         <DropdownMenuSubContent>
@@ -426,53 +382,6 @@ export default function SettingsPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-       <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Cambiar Contraseña</DialogTitle>
-                <DialogDescription>
-                    Establezca una nueva contraseña para {userToUpdate?.email}.
-                </DialogDescription>
-            </DialogHeader>
-            <Form {...passwordForm}>
-                <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
-                    <FormField
-                        control={passwordForm.control}
-                        name="password"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Nueva Contraseña</FormLabel>
-                                <FormControl>
-                                    <Input type="password" placeholder="••••••••" {...field} autoComplete="new-password"/>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                     <FormField
-                        control={passwordForm.control}
-                        name="confirmPassword"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Confirmar Nueva Contraseña</FormLabel>
-                                <FormControl>
-                                    <Input type="password" placeholder="••••••••" {...field} autoComplete="new-password"/>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancelar</Button>
-                        <Button type="submit" disabled={passwordForm.formState.isSubmitting}>
-                            {passwordForm.formState.isSubmitting ? "Guardando..." : "Guardar Contraseña"}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </Form>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
