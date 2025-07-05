@@ -358,7 +358,7 @@ export default function SettingsPage() {
                             <FormItem>
                                 <FormLabel>Correo Electrónico</FormLabel>
                                 <FormControl>
-                                    <Input type="email" placeholder="nombre@ejemplo.com" {...field} />
+                                    <Input type="email" placeholder="nombre@ejemplo.com" {...field} autoComplete="email" />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -371,7 +371,7 @@ export default function SettingsPage() {
                             <FormItem>
                                 <FormLabel>Contraseña</FormLabel>
                                 <FormControl>
-                                    <Input type="password" placeholder="••••••••" {...field} />
+                                    <Input type="password" placeholder="••••••••" {...field} autoComplete="new-password" />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -444,7 +444,7 @@ export default function SettingsPage() {
                             <FormItem>
                                 <FormLabel>Nueva Contraseña</FormLabel>
                                 <FormControl>
-                                    <Input type="password" placeholder="••••••••" {...field} />
+                                    <Input type="password" placeholder="••••••••" {...field} autoComplete="new-password"/>
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -457,7 +457,7 @@ export default function SettingsPage() {
                             <FormItem>
                                 <FormLabel>Confirmar Nueva Contraseña</FormLabel>
                                 <FormControl>
-                                    <Input type="password" placeholder="••••••••" {...field} />
+                                    <Input type="password" placeholder="••••••••" {...field} autoComplete="new-password"/>
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
