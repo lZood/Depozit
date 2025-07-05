@@ -7,6 +7,7 @@ import {
   Plus,
   Minus,
   UserPlus,
+  XCircle,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +33,17 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type Product = {
   id: string;
@@ -50,6 +62,8 @@ export default function SellPage() {
   const [searchResults, setSearchResults] = React.useState<Product[]>([]);
   const [loadingSearch, setLoadingSearch] = React.useState(false);
   const [cart, setCart] = React.useState<CartItem[]>([]);
+  const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
+  const [isProcessing, setIsProcessing] = React.useState(false);
   const supabase = createClient();
   const { toast } = useToast();
 
@@ -127,6 +141,43 @@ export default function SellPage() {
 
   const subtotal = total / 1.16;
   const tax = total - subtotal;
+
+  const handleProcessSale = async () => {
+    if (cart.length === 0) {
+        toast({ title: "Carrito vacío", description: "Agrega productos para procesar la venta.", variant: "destructive" });
+        return;
+    }
+    setIsProcessing(true);
+
+    const saleItems = cart.map(item => ({
+        product_id: item.id,
+        quantity: item.quantity,
+        sale_price: item.sale_price
+    }));
+
+    const { data: saleId, error } = await supabase.rpc('process_sale', {
+        p_cart_items: saleItems,
+        p_total_amount: total,
+        p_tax_amount: tax,
+        p_subtotal_amount: subtotal
+    });
+
+    if (error) {
+        toast({
+            title: "Error al procesar la venta",
+            description: error.message,
+            variant: "destructive"
+        });
+    } else {
+        toast({
+            title: "Venta completada",
+            description: `Venta #${saleId.substring(0, 8)} registrada con éxito.`,
+        });
+        setCart([]);
+        setPaymentDialogOpen(false);
+    }
+    setIsProcessing(false);
+  };
 
   return (
     <div className="grid flex-1 auto-rows-max gap-4 lg:grid-cols-3 xl:grid-cols-5">
@@ -280,8 +331,29 @@ export default function SellPage() {
                     </div>
                 </div>
               <div className="grid grid-cols-2 gap-4 w-full">
-                <Button variant="outline">Pausar Venta</Button>
-                <Button>Procesar Pago</Button>
+                <Button variant="outline" onClick={() => setCart([])} disabled={cart.length === 0}>
+                  <XCircle className="mr-2" />
+                  Cancelar Venta
+                </Button>
+                <AlertDialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+                    <AlertDialogTrigger asChild>
+                        <Button disabled={cart.length === 0}>Procesar Pago</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar Venta</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                El total a cobrar es de ${total.toFixed(2)}. ¿Desea continuar?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={isProcessing}>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleProcessSale} disabled={isProcessing}>
+                                {isProcessing ? 'Procesando...' : 'Confirmar Pago'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardFooter>
           )}
