@@ -5,7 +5,7 @@ import * as React from "react";
 import { DateRange } from "react-day-picker";
 import { addDays, format, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
-import { Calendar as CalendarIcon, PackagePlus, PackageMinus, CircleDollarSign, ShieldAlert } from "lucide-react";
+import { Calendar as CalendarIcon, PackagePlus, PackageMinus, CircleDollarSign, ShieldAlert, Users, CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 import { cn } from "@/lib/utils";
@@ -58,6 +58,11 @@ type InventorySummary = {
 type InventoryMovementsOverTime = { date: string; units_in: number; units_out: number; };
 type TopAdjustedProduct = { product_name: string; reason: string; total_quantity_adjusted: number; };
 
+// Tipos para reportes de rendimiento
+type SalesByEmployee = { employee_email: string; total_sales: number; sales_count: number; };
+type SalesByPaymentMethod = { payment_method: string; total_amount: number; transaction_count: number; };
+
+
 export default function ReportsPage() {
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
@@ -74,6 +79,10 @@ export default function ReportsPage() {
   const [inventoryMovements, setInventoryMovements] = React.useState<InventoryMovementsOverTime[]>([]);
   const [topAdjustedProducts, setTopAdjustedProducts] = React.useState<TopAdjustedProduct[]>([]);
   
+  // Estado para rendimiento
+  const [salesByEmployee, setSalesByEmployee] = React.useState<SalesByEmployee[]>([]);
+  const [salesByPaymentMethod, setSalesByPaymentMethod] = React.useState<SalesByPaymentMethod[]>([]);
+
   const [loading, setLoading] = React.useState(true);
 
   const supabase = createClient();
@@ -96,6 +105,9 @@ export default function ReportsPage() {
         supabase.rpc("get_inventory_summary", { start_date: startDate, end_date: endDate }).single(),
         supabase.rpc("get_inventory_movements_over_time", { start_date: startDate, end_date: endDate }),
         supabase.rpc("get_top_adjusted_products", { start_date: startDate, end_date: endDate, limit_count: 5 }),
+        // Performance reports
+        supabase.rpc("get_sales_by_employee", { start_date: startDate, end_date: endDate }),
+        supabase.rpc("get_sales_by_payment_method", { start_date: startDate, end_date: endDate }),
       ];
 
       const [
@@ -105,6 +117,8 @@ export default function ReportsPage() {
           inventorySummaryRes,
           inventoryMovementsRes,
           topAdjustedProductsRes,
+          salesByEmployeeRes,
+          salesByPaymentMethodRes,
       ] = await Promise.all(reportsToFetch);
 
       // Process Sales Results
@@ -126,6 +140,14 @@ export default function ReportsPage() {
 
       if (topAdjustedProductsRes.error) toast({ title: "Error", description: "No se pudieron cargar los principales ajustes.", variant: "destructive" });
       else setTopAdjustedProducts(topAdjustedProductsRes.data as TopAdjustedProduct[]);
+
+      // Process Performance Results
+      if (salesByEmployeeRes.error) toast({ title: "Error", description: "No se pudo cargar el reporte de ventas por empleado.", variant: "destructive" });
+      else setSalesByEmployee(salesByEmployeeRes.data as SalesByEmployee[]);
+
+      if (salesByPaymentMethodRes.error) toast({ title: "Error", description: "No se pudo cargar el reporte por método de pago.", variant: "destructive" });
+      else setSalesByPaymentMethod(salesByPaymentMethodRes.data as SalesByPaymentMethod[]);
+
 
       setLoading(false);
     };
@@ -164,9 +186,10 @@ export default function ReportsPage() {
       </div>
 
       <Tabs defaultValue="sales">
-        <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+        <TabsList className="grid w-full grid-cols-2 md:w-[600px] lg:grid-cols-3">
           <TabsTrigger value="sales">Ventas</TabsTrigger>
           <TabsTrigger value="inventory">Inventario</TabsTrigger>
+          <TabsTrigger value="performance">Rendimiento</TabsTrigger>
         </TabsList>
         <TabsContent value="sales" className="space-y-4 mt-4">
           {loading ? (
@@ -204,7 +227,78 @@ export default function ReportsPage() {
             <Card><CardHeader><CardTitle>Ajustes de Stock Principales</CardTitle><CardDescription>Top 5 movimientos (excl. ventas/compras).</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Motivo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader><TableBody>{loading ? ([...Array(5)].map((_, i) => (<TableRow key={i}><TableCell><Skeleton className="h-5 w-3/4" /></TableCell><TableCell><Skeleton className="h-5 w-1/2" /></TableCell><TableCell><Skeleton className="h-5 w-3/4 float-right" /></TableCell></TableRow>))) : topAdjustedProducts.length > 0 ? (topAdjustedProducts.map((p, i) => (<TableRow key={i}><TableCell className="font-medium">{p.product_name}</TableCell><TableCell>{p.reason}</TableCell><TableCell className="text-right"><Badge variant={p.total_quantity_adjusted > 0 ? "secondary" : "destructive"}>{formatNumber(p.total_quantity_adjusted)}</Badge></TableCell></TableRow>))) : (<TableRow><TableCell colSpan={3} className="h-24 text-center">No hay ajustes de stock en este período.</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
           </div>
         </TabsContent>
+        <TabsContent value="performance" className="space-y-4 mt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+             <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle>Ventas por Empleado</CardTitle>
+                  </div>
+                  <CardDescription>Rendimiento de ventas de cada miembro del equipo en el período seleccionado.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Empleado</TableHead><TableHead className="text-center">No. Ventas</TableHead><TableHead className="text-right">Total Vendido</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {loading ? ([...Array(3)].map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
+                          <TableCell><Skeleton className="h-5 w-1/2 mx-auto" /></TableCell>
+                          <TableCell><Skeleton className="h-5 w-3/4 float-right" /></TableCell>
+                        </TableRow>
+                      ))) : salesByEmployee.length > 0 ? (
+                        salesByEmployee.map(e => (
+                          <TableRow key={e.employee_email}>
+                            <TableCell className="font-medium">{e.employee_email}</TableCell>
+                            <TableCell className="text-center">{formatNumber(e.sales_count)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(e.total_sales)}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow><TableCell colSpan={3} className="h-24 text-center">No se encontraron ventas en este período.</TableCell></TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                   <div className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle>Ventas por Método de Pago</CardTitle>
+                  </div>
+                  <CardDescription>Desglose de ingresos por método de pago en el período seleccionado.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Método</TableHead><TableHead className="text-center">No. Transacciones</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {loading ? ([...Array(2)].map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell><Skeleton className="h-5 w-3/4" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-1/2 mx-auto" /></TableCell>
+                            <TableCell><Skeleton className="h-5 w-3/4 float-right" /></TableCell>
+                          </TableRow>
+                        ))) : salesByPaymentMethod.length > 0 ? (
+                          salesByPaymentMethod.map(p => (
+                            <TableRow key={p.payment_method}>
+                              <TableCell className="font-medium capitalize">{p.payment_method}</TableCell>
+                              <TableCell className="text-center">{formatNumber(p.transaction_count)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(p.total_amount)}</TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow><TableCell colSpan={3} className="h-24 text-center">No se encontraron transacciones.</TableCell></TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
-}
+
+    
