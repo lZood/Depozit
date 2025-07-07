@@ -19,6 +19,7 @@ import {
   List,
   ChevronDown,
   ChevronUp,
+  ShoppingCart,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -47,11 +48,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type Product = {
@@ -90,6 +99,7 @@ export default function SellPage() {
   const [isProcessing, setIsProcessing] = React.useState(false);
   
   const [customerDialogOpen, setCustomerDialogOpen] = React.useState(false);
+  const [cartSheetOpen, setCartSheetOpen] = React.useState(false);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [customerSearch, setCustomerSearch] = React.useState("");
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
@@ -250,6 +260,10 @@ export default function SellPage() {
     });
     setSearchQuery("");
     setSearchResults([]);
+    toast({
+      title: "Producto agregado",
+      description: `${product.name} se ha añadido al carrito.`
+    })
   };
 
   const updateQuantity = (productId: string, newQuantity: number) => {
@@ -271,6 +285,10 @@ export default function SellPage() {
   
   const total = React.useMemo(() => {
     return cart.reduce((acc, item) => acc + item.sale_price * item.quantity, 0);
+  }, [cart]);
+  
+  const totalQuantity = React.useMemo(() => {
+    return cart.reduce((total, item) => total + item.quantity, 0);
   }, [cart]);
 
   const subtotal = total / 1.16;
@@ -312,6 +330,7 @@ export default function SellPage() {
         });
         setCart([]);
         setSelectedCustomer(null);
+        setCartSheetOpen(false);
     }
     setIsProcessing(false);
   };
@@ -319,7 +338,135 @@ export default function SellPage() {
   const handleCancelSale = () => {
     setCart([]);
     setSelectedCustomer(null);
+    setCartSheetOpen(false);
   }
+
+  const renderCartContent = () => (
+    <>
+      <div className="p-4 pt-0 lg:p-6 lg:pt-2">
+        {selectedCustomer ? (
+            <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium text-sm">{selectedCustomer.full_name}</span>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearCustomer}>
+                  <UserX className="h-4 w-4" />
+                </Button>
+            </div>
+        ) : (
+           <Button variant="outline" size="sm" onClick={() => setCustomerDialogOpen(true)}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Asignar Cliente
+          </Button>
+        )}
+      </div>
+
+      <ScrollArea className="flex-1 px-4 lg:px-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Producto</TableHead>
+              <TableHead className="text-center w-[120px]">Cant</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {cart.length > 0 ? (
+              cart.map(item => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <div className="font-medium">{item.name}</div>
+                    <div className="text-xs text-muted-foreground">${item.sale_price.toFixed(2)} c/u</div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="h-6 w-6"
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <Input 
+                        type="number" 
+                        value={item.quantity}
+                        onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0)}
+                        className="w-12 h-8 text-center" 
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="icon" 
+                        className="h-6 w-6"
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    ${(item.sale_price * item.quantity).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={3} className="text-center h-48 text-muted-foreground">
+                  El carrito está vacío
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </ScrollArea>
+      {cart.length > 0 && (
+        <div className="flex-col items-start gap-4 border-t bg-muted/50 p-4 mt-auto">
+            <div className="w-full space-y-2">
+                <div className="flex justify-between font-semibold text-lg">
+                    <span>Total</span>
+                    <span>${total.toFixed(2)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>IVA (16% Incluido)</span>
+                    <span>${tax.toFixed(2)}</span>
+                </div>
+            </div>
+          <div className="flex flex-col gap-2 w-full pt-2">
+            <div className="grid grid-cols-2 gap-2">
+                <Button 
+                    onClick={() => handleProcessSale('efectivo')} 
+                    disabled={isProcessing || cart.length === 0}
+                    size="lg"
+                >
+                    <DollarSign className="mr-2 h-5 w-5" />
+                    {isProcessing ? 'Procesando...' : 'Efectivo'}
+                </Button>
+                <Button 
+                    onClick={() => handleProcessSale('tarjeta')} 
+                    disabled={isProcessing || cart.length === 0}
+                    size="lg"
+                >
+                    <CreditCard className="mr-2 h-5 w-5" />
+                    {isProcessing ? 'Procesando...' : 'Tarjeta'}
+                </Button>
+            </div>
+            <Button 
+                variant="outline" 
+                onClick={handleCancelSale} 
+                disabled={isProcessing || cart.length === 0}
+            >
+              <XCircle className="mr-2" />
+              Cancelar Venta
+            </Button>
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <>
@@ -478,134 +625,40 @@ export default function SellPage() {
             </CardContent>
           </Card>
         </div>
-        <div className="lg:col-span-1 xl:col-span-2">
+        
+        {/* Desktop Cart */}
+        <div className="lg:col-span-1 xl:col-span-2 hidden lg:flex">
           <Card className="flex flex-col h-full">
             <CardHeader>
               <CardTitle>Venta Actual</CardTitle>
-              <div className="flex justify-between items-center pt-2">
-                  {selectedCustomer ? (
-                      <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium text-sm">{selectedCustomer.full_name}</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={clearCustomer}>
-                            <UserX className="h-4 w-4" />
-                          </Button>
-                      </div>
-                  ) : (
-                     <Button variant="outline" size="sm" onClick={() => setCustomerDialogOpen(true)}>
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Asignar Cliente
-                    </Button>
-                  )}
-              </div>
             </CardHeader>
-            <CardContent className="flex-1 overflow-auto p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Producto</TableHead>
-                    <TableHead className="text-center w-[120px]">Cant</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cart.length > 0 ? (
-                    cart.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="font-medium">{item.name}</div>
-                          <div className="text-xs text-muted-foreground">${item.sale_price.toFixed(2)} c/u</div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
-                              className="h-6 w-6"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <Input 
-                              type="number" 
-                              value={item.quantity}
-                              onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0)}
-                              className="w-12 h-8 text-center" 
-                            />
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
-                              className="h-6 w-6"
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          ${(item.sale_price * item.quantity).toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center h-48 text-muted-foreground">
-                        El carrito está vacío
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-            {cart.length > 0 && (
-              <CardFooter className="flex-col items-start gap-4 border-t bg-muted/50 p-4 mt-auto">
-                  <div className="w-full space-y-2">
-                      <div className="flex justify-between font-semibold text-lg">
-                          <span>Total</span>
-                          <span>${total.toFixed(2)}</span>
-                      </div>
-                      <Separator />
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                          <span>Subtotal</span>
-                          <span>${subtotal.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm text-muted-foreground">
-                          <span>IVA (16% Incluido)</span>
-                          <span>${tax.toFixed(2)}</span>
-                      </div>
-                  </div>
-                <div className="flex flex-col gap-2 w-full pt-2">
-                  <div className="grid grid-cols-2 gap-2">
-                      <Button 
-                          onClick={() => handleProcessSale('efectivo')} 
-                          disabled={isProcessing || cart.length === 0}
-                          size="lg"
-                      >
-                          <DollarSign className="mr-2 h-5 w-5" />
-                          {isProcessing ? 'Procesando...' : 'Efectivo'}
-                      </Button>
-                      <Button 
-                          onClick={() => handleProcessSale('tarjeta')} 
-                          disabled={isProcessing || cart.length === 0}
-                          size="lg"
-                      >
-                          <CreditCard className="mr-2 h-5 w-5" />
-                          {isProcessing ? 'Procesando...' : 'Tarjeta'}
-                      </Button>
-                  </div>
-                  <Button 
-                      variant="outline" 
-                      onClick={handleCancelSale} 
-                      disabled={isProcessing || cart.length === 0}
-                  >
-                    <XCircle className="mr-2" />
-                    Cancelar Venta
-                  </Button>
-                </div>
-              </CardFooter>
-            )}
+            <div className="flex flex-col flex-1 overflow-y-auto">
+              {renderCartContent()}
+            </div>
           </Card>
         </div>
+      </div>
+
+      {/* Mobile Cart FAB and Sheet */}
+      <div className="lg:hidden">
+        {cart.length > 0 && (
+          <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
+            <div className="fixed bottom-6 right-6 z-40">
+                <Button onClick={() => setCartSheetOpen(true)} className="relative h-16 w-16 rounded-full shadow-lg">
+                    <ShoppingCart className="h-7 w-7" />
+                    <Badge className="absolute -top-1 -right-1 h-6 w-6 flex items-center justify-center rounded-full">
+                        {totalQuantity}
+                    </Badge>
+                </Button>
+            </div>
+            <SheetContent side="bottom" className="h-[90dvh] flex flex-col p-0">
+                <SheetHeader className="p-4 border-b">
+                    <SheetTitle>Venta Actual</SheetTitle>
+                </SheetHeader>
+                {renderCartContent()}
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
       
       <Dialog open={customerDialogOpen} onOpenChange={setCustomerDialogOpen}>
