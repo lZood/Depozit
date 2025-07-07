@@ -17,6 +17,7 @@ import {
   Search,
   LayoutGrid,
 } from "lucide-react";
+import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +45,7 @@ export default function DashboardLayoutClient({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const handleLogout = async () => {
     console.log('[DashboardLayoutClient] Logging out...');
@@ -119,7 +121,7 @@ export default function DashboardLayoutClient({
       </aside>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-          <Sheet>
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
               <Button size="icon" variant="outline" className="sm:hidden">
                 <PanelLeft className="h-5 w-5" />
@@ -131,6 +133,7 @@ export default function DashboardLayoutClient({
                 <Link
                   href="/dashboard"
                   className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
+                  onClick={() => setMobileMenuOpen(false)}
                 >
                   <Package2 className="h-5 w-5 transition-all group-hover:scale-110" />
                   <span className="sr-only">Depozit</span>
@@ -143,6 +146,7 @@ export default function DashboardLayoutClient({
                       "flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground",
                       pathname === item.href && "text-foreground"
                     )}
+                    onClick={() => setMobileMenuOpen(false)}
                   >
                     <item.icon className="h-5 w-5" />
                     {item.label}
@@ -155,6 +159,7 @@ export default function DashboardLayoutClient({
                         "flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground",
                         pathname.startsWith(settingsNav.href) && "text-foreground"
                         )}
+                        onClick={() => setMobileMenuOpen(false)}
                     >
                         <settingsNav.icon className="h-5 w-5" />
                         {settingsNav.label}

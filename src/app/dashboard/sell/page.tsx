@@ -17,6 +17,8 @@ import {
   LayoutGrid,
   Grid2X2,
   List,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -95,9 +97,42 @@ export default function SellPage() {
   const [featuredProducts, setFeaturedProducts] = React.useState<Product[]>([]);
   const [loadingFeatured, setLoadingFeatured] = React.useState(true);
   const [viewMode, setViewMode] = React.useState<'large' | 'medium' | 'list'>('large');
+  const [isQuickAccessVisible, setIsQuickAccessVisible] = React.useState(true);
 
   const supabase = createClient();
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    try {
+      const savedViewMode = localStorage.getItem('sellPageViewMode') as 'large' | 'medium' | 'list' | null;
+      if (savedViewMode) {
+          setViewMode(savedViewMode);
+      }
+      const savedVisibility = localStorage.getItem('sellPageQuickAccessVisible');
+      if (savedVisibility !== null) {
+          setIsQuickAccessVisible(JSON.parse(savedVisibility));
+      }
+    } catch (error) {
+        console.error("Error reading from localStorage", error);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('sellPageViewMode', viewMode);
+    } catch (error) {
+      console.error("Error writing to localStorage", error);
+    }
+  }, [viewMode]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('sellPageQuickAccessVisible', JSON.stringify(isQuickAccessVisible));
+    } catch (error) {
+      console.error("Error writing to localStorage", error);
+    }
+  }, [isQuickAccessVisible]);
+
 
   React.useEffect(() => {
     const fetchFeatured = async () => {
@@ -361,76 +396,83 @@ export default function SellPage() {
                             <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" className="h-7 w-7" onClick={() => setViewMode('list')}>
                                 <List className="h-4 w-4" />
                             </Button>
+                            <Separator orientation="vertical" className="h-5 mx-1" />
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsQuickAccessVisible(!isQuickAccessVisible)}>
+                                {isQuickAccessVisible ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                                <span className="sr-only">{isQuickAccessVisible ? 'Minimizar' : 'Maximizar'}</span>
+                            </Button>
                         </div>
                     </div>
-                    {loadingFeatured ? (
-                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
-                        </div>
-                    ) : (
-                        <ScrollArea className="flex-1">
-                            {featuredProducts.length > 0 ? (
-                                <div className={cn(
-                                    "pr-4",
-                                    viewMode === 'list' && "flex flex-col gap-1",
-                                    viewMode === 'large' && "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4",
-                                    viewMode === 'medium' && "grid grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3",
-                                )}>
-                                {featuredProducts.map((product) => (
-                                    viewMode === 'list' ? (
-                                        <Button 
-                                            key={product.id} 
-                                            variant="ghost" 
-                                            className="w-full justify-start h-auto p-2 text-left"
-                                            onClick={() => addToCart(product)}
-                                            disabled={product.stock < 1}
-                                        >
-                                            <div className="flex justify-between w-full items-center">
-                                                <div>
-                                                    <p className="font-semibold">{product.name}</p>
+                    {isQuickAccessVisible && (
+                        loadingFeatured ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+                            </div>
+                        ) : (
+                            <ScrollArea className="flex-1">
+                                {featuredProducts.length > 0 ? (
+                                    <div className={cn(
+                                        "pr-4",
+                                        viewMode === 'list' && "flex flex-col gap-1",
+                                        viewMode === 'large' && "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4",
+                                        viewMode === 'medium' && "grid grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3",
+                                    )}>
+                                    {featuredProducts.map((product) => (
+                                        viewMode === 'list' ? (
+                                            <Button 
+                                                key={product.id} 
+                                                variant="ghost" 
+                                                className="w-full justify-start h-auto p-2 text-left"
+                                                onClick={() => addToCart(product)}
+                                                disabled={product.stock < 1}
+                                            >
+                                                <div className="flex justify-between w-full items-center">
+                                                    <div>
+                                                        <p className="font-semibold">{product.name}</p>
+                                                    </div>
+                                                    <p className="font-bold text-base">${product.sale_price.toFixed(2)}</p>
                                                 </div>
-                                                <p className="font-bold text-base">${product.sale_price.toFixed(2)}</p>
-                                            </div>
-                                        </Button>
-                                    ) : (
-                                        <Button
-                                            key={product.id}
-                                            variant="outline"
-                                            className={cn(
-                                                "relative h-auto aspect-square p-0 overflow-hidden group focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                                                { "text-xs": viewMode === 'medium' }
-                                            )}
-                                            onClick={() => addToCart(product)}
-                                            disabled={product.stock < 1}
-                                        >
-                                            <Image
-                                                alt={product.name}
-                                                src={product.image_url || `https://placehold.co/128x128.png`}
-                                                fill
-                                                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 15vw"
-                                                className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                                data-ai-hint="product photo"
-                                            />
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                                            <div className="absolute bottom-0 left-0 right-0 p-2 text-white text-left">
-                                                <p className={cn("font-bold truncate", viewMode === 'large' ? 'text-sm' : 'text-xs')}>{product.name}</p>
-                                                <p className={cn("font-semibold", viewMode === 'large' ? 'text-base' : 'text-sm')}>${product.sale_price.toFixed(2)}</p>
-                                            </div>
-                                            {product.stock < 1 && (
-                                                <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                                                    <span className="font-bold text-destructive">SIN STOCK</span>
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                key={product.id}
+                                                variant="outline"
+                                                className={cn(
+                                                    "relative h-auto aspect-square p-0 overflow-hidden group focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                                    { "text-xs": viewMode === 'medium' }
+                                                )}
+                                                onClick={() => addToCart(product)}
+                                                disabled={product.stock < 1}
+                                            >
+                                                <Image
+                                                    alt={product.name}
+                                                    src={product.image_url || `https://placehold.co/128x128.png`}
+                                                    fill
+                                                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 15vw"
+                                                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                                    data-ai-hint="product photo"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                                                <div className="absolute bottom-0 left-0 right-0 p-2 text-white text-left">
+                                                    <p className={cn("font-bold truncate", viewMode === 'large' ? 'text-sm' : 'text-xs')}>{product.name}</p>
+                                                    <p className={cn("font-semibold", viewMode === 'large' ? 'text-base' : 'text-sm')}>${product.sale_price.toFixed(2)}</p>
                                                 </div>
-                                            )}
-                                        </Button>
-                                    )
-                                ))}
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                                    Marque productos con una estrella en la página de Productos para verlos aquí.
-                                </div>
-                            )}
-                        </ScrollArea>
+                                                {product.stock < 1 && (
+                                                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                                                        <span className="font-bold text-destructive">SIN STOCK</span>
+                                                    </div>
+                                                )}
+                                            </Button>
+                                        )
+                                    ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                                        Marque productos con una estrella en la página de Productos para verlos aquí.
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        )
                     )}
                 </div>
             </CardContent>
@@ -618,5 +660,3 @@ export default function SellPage() {
     </>
   )
 }
-
-    
