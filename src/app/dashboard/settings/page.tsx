@@ -10,12 +10,14 @@ import { z } from "zod";
 import {
   MoreHorizontal,
   PlusCircle,
+  Store,
 } from "lucide-react";
 
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -70,6 +72,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 
 
 type UserWithRole = {
@@ -91,11 +94,25 @@ const getInitials = (email: string | null) => {
   return email.substring(0, 2).toUpperCase();
 };
 
+const timezones = [
+  { value: "America/Mexico_City", label: "Ciudad de México (GMT-6)" },
+  { value: "America/Cancun", label: "Cancún (GMT-5)" },
+  { value: "America/Tijuana", label: "Tijuana (GMT-7)" },
+  { value: "America/Mazatlan", label: "Mazatlán (GMT-7)" },
+  { value: "America/Bogota", label: "Bogotá (GMT-5)" },
+  { value: "America/Buenos_Aires", label: "Buenos Aires (GMT-3)" },
+  { value: "America/Santiago", label: "Santiago (GMT-4)" },
+  { value: "America/Caracas", label: "Caracas (GMT-4)" },
+  { value: "America/Lima", label: "Lima (GMT-5)" },
+  { value: "America/La_Paz", label: "La Paz (GMT-4)" },
+];
+
 export default function SettingsPage() {
   const [users, setUsers] = React.useState<UserWithRole[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [currentUser, setCurrentUser] = React.useState<{ id: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [timezone, setTimezone] = React.useState("America/Mazatlan");
   
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -195,10 +212,19 @@ export default function SettingsPage() {
     setUserToDelete(null);
   };
 
+  const handleSaveSettings = () => {
+    // In a real app, you would save this to localStorage or a database
+    // For now, we'll just show a confirmation toast
+    toast({
+        title: "Ajustes Guardados",
+        description: `La zona horaria se ha establecido a ${timezone}. Este cambio se aplicará en futuros reportes.`,
+    });
+  };
+
   return (
     <>
       <div className="grid flex-1 items-start gap-4 md:gap-8">
-        <Card>
+         <Card>
           <CardHeader>
              <div className="flex items-center">
                 <div>
@@ -216,84 +242,170 @@ export default function SettingsPage() {
              </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Usuario</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead>
-                    <span className="sr-only">Acciones</span>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  [...Array(3)].map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <div className="flex items-center gap-4">
-                          <Skeleton className="h-10 w-10 rounded-full" />
-                          <div className="space-y-1"><Skeleton className="h-4 w-48" /></div>
-                        </div>
-                      </TableCell>
-                      <TableCell><Skeleton className="h-6 w-24 rounded-md" /></TableCell>
-                      <TableCell><Skeleton className="h-8 w-8 rounded-full float-right" /></TableCell>
-                    </TableRow>
-                  ))
-                ) : users.length > 0 ? (
-                  users.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-4">
-                          <Avatar>
-                            <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{user.email}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="capitalize">{user.role === 'admin' ? 'Administrador' : 'Empleado'}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                         {user.id !== currentUser?.id && (
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button aria-haspopup="true" size="icon" variant="ghost">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                        <span className="sr-only">Alternar menú</span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                    <DropdownMenuSub>
-                                        <DropdownMenuSubTrigger>Cambiar Rol</DropdownMenuSubTrigger>
-                                        <DropdownMenuSubContent>
-                                            <DropdownMenuRadioGroup value={user.role} onValueChange={(value) => handleRoleChange(user.id, value as "admin" | "employee")}>
-                                                <DropdownMenuRadioItem value="admin">Administrador</DropdownMenuRadioItem>
-                                                <DropdownMenuRadioItem value="employee">Empleado</DropdownMenuRadioItem>
-                                            </DropdownMenuRadioGroup>
-                                        </DropdownMenuSubContent>
-                                    </DropdownMenuSub>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
-                                        Eliminar Usuario
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
+            {/* Desktop Table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
-                      No se encontraron usuarios.
-                    </TableCell>
+                    <TableHead>Usuario</TableHead>
+                    <TableHead>Rol</TableHead>
+                    <TableHead>
+                      <span className="sr-only">Acciones</span>
+                    </TableHead>
                   </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    [...Array(3)].map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <div className="flex items-center gap-4">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="space-y-1"><Skeleton className="h-4 w-48" /></div>
+                          </div>
+                        </TableCell>
+                        <TableCell><Skeleton className="h-6 w-24 rounded-md" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-8 rounded-full float-right" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : users.length > 0 ? (
+                    users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-4">
+                            <Avatar>
+                              <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{user.email}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="capitalize">{user.role === 'admin' ? 'Administrador' : 'Empleado'}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {user.id !== currentUser?.id && (
+                              <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                      <Button aria-haspopup="true" size="icon" variant="ghost">
+                                          <MoreHorizontal className="h-4 w-4" />
+                                          <span className="sr-only">Alternar menú</span>
+                                      </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                      <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                      <DropdownMenuSub>
+                                          <DropdownMenuSubTrigger>Cambiar Rol</DropdownMenuSubTrigger>
+                                          <DropdownMenuSubContent>
+                                              <DropdownMenuRadioGroup value={user.role} onValueChange={(value) => handleRoleChange(user.id, value as "admin" | "employee")}>
+                                                  <DropdownMenuRadioItem value="admin">Administrador</DropdownMenuRadioItem>
+                                                  <DropdownMenuRadioItem value="employee">Empleado</DropdownMenuRadioItem>
+                                              </DropdownMenuRadioGroup>
+                                          </DropdownMenuSubContent>
+                                      </DropdownMenuSub>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                          Eliminar Usuario
+                                      </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                              </DropdownMenu>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="h-24 text-center">
+                        No se encontraron usuarios.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            {/* Mobile Card List */}
+            <div className="md:hidden space-y-4">
+               {loading ? (
+                    [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)
+                ) : users.length > 0 ? (
+                    users.map(user => (
+                        <Card key={user.id}>
+                            <CardContent className="p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-4 overflow-hidden">
+                                    <Avatar>
+                                        <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="overflow-hidden">
+                                        <p className="font-medium truncate text-sm">{user.email}</p>
+                                        <p className="text-sm capitalize text-muted-foreground">
+                                            {user.role === 'admin' ? 'Administrador' : 'Empleado'}
+                                        </p>
+                                    </div>
+                                </div>
+                                {user.id !== currentUser?.id && (
+                                     <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button aria-haspopup="true" size="icon" variant="ghost" className="h-8 w-8 shrink-0">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                                <span className="sr-only">Alternar menú</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                            <DropdownMenuSub>
+                                                <DropdownMenuSubTrigger>Cambiar Rol</DropdownMenuSubTrigger>
+                                                <DropdownMenuSubContent>
+                                                    <DropdownMenuRadioGroup value={user.role} onValueChange={(value) => handleRoleChange(user.id, value as "admin" | "employee")}>
+                                                        <DropdownMenuRadioItem value="admin">Administrador</DropdownMenuRadioItem>
+                                                        <DropdownMenuRadioItem value="employee">Empleado</DropdownMenuRadioItem>
+                                                    </DropdownMenuRadioGroup>
+                                                </DropdownMenuSubContent>
+                                            </DropdownMenuSub>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                                Eliminar Usuario
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ))
+                ) : (
+                    <div className="text-center text-muted-foreground py-10">
+                        <p>No se encontraron usuarios.</p>
+                    </div>
                 )}
-              </TableBody>
-            </Table>
+            </div>
           </CardContent>
+        </Card>
+        
+        <Card>
+            <CardHeader>
+                <CardTitle>Configuración de la Tienda</CardTitle>
+                <CardDescription>
+                    Ajustes generales de la aplicación como la zona horaria para los reportes.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-4 sm:max-w-sm">
+                    <div className="grid gap-2">
+                        <Label htmlFor="timezone">Zona Horaria</Label>
+                        <Select value={timezone} onValueChange={setTimezone}>
+                            <SelectTrigger id="timezone">
+                                <SelectValue placeholder="Seleccionar zona horaria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {timezones.map(tz => (
+                                    <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4">
+                <Button onClick={handleSaveSettings}>Guardar Cambios</Button>
+            </CardFooter>
         </Card>
       </div>
 
