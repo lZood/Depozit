@@ -246,11 +246,11 @@ export default function DashboardLayoutClient({
               <nav className="grid gap-6 text-lg font-medium">
                 <Link
                   href="/dashboard"
-                  className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
+                  className="flex items-center gap-4 px-2.5 font-semibold text-foreground"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <Package2 className="h-5 w-5 transition-all group-hover:scale-110" />
-                  <span className="sr-only">Depozit</span>
+                  <Package2 className="h-6 w-6" />
+                  <span>Depozit</span>
                 </Link>
                 {navItems.map((item) => (
                   <Link
@@ -282,6 +282,12 @@ export default function DashboardLayoutClient({
               </nav>
             </SheetContent>
           </Sheet>
+          
+          <div className="hidden font-semibold md:flex md:items-center md:gap-2">
+              <Package2 className="h-6 w-6" />
+              <span className="text-lg">Depozit</span>
+          </div>
+          
           {renderSearchPopover()}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
