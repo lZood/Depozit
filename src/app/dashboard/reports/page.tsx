@@ -153,7 +153,7 @@ export default function ReportsPage() {
         doc.setFontSize(10).text(`- No. de Transacciones: ${formatNumber(salesSummary.transaction_count)}`, 14, yPos); yPos += 6;
         doc.setFontSize(10).text(`- Venta Promedio: ${formatCurrency(salesSummary.average_sale)}`, 14, yPos); yPos += 10;
     }
-    if (topProducts.length > 0) {
+    if (topProducts && topProducts.length > 0) {
         addPageIfNeeded();
         autoTable(doc, { startY: yPos, head: [['Productos Más Vendidos', 'Cantidad', 'Ingresos']], body: topProducts.map(p => [p.product_name, formatNumber(p.total_quantity), formatCurrency(p.total_revenue)]) });
         yPos = (doc as any).lastAutoTable.finalY + 10;
@@ -168,19 +168,19 @@ export default function ReportsPage() {
         doc.setFontSize(10).text(`- Inversión en Compras: ${formatCurrency(inventorySummary.purchase_investment)}`, 14, yPos); yPos += 6;
         doc.setFontSize(10).text(`- Pérdida en Ajustes: ${formatCurrency(inventorySummary.adjustments_value_loss)}`, 14, yPos); yPos += 10;
     }
-     if (topAdjustedProducts.length > 0) {
+     if (topAdjustedProducts && topAdjustedProducts.length > 0) {
         addPageIfNeeded();
         autoTable(doc, { startY: yPos, head: [['Ajustes Principales', 'Motivo', 'Cantidad']], body: topAdjustedProducts.map(p => [p.product_name, p.reason, formatNumber(p.total_quantity_adjusted)]) });
         yPos = (doc as any).lastAutoTable.finalY + 10;
     }
 
     // --- Performance Section ---
-    if (salesByEmployee.length > 0) {
+    if (salesByEmployee && salesByEmployee.length > 0) {
         addPageIfNeeded();
         autoTable(doc, { startY: yPos, head: [['Ventas por Empleado', 'No. Ventas', 'Total Vendido']], body: salesByEmployee.map(e => [e.employee_email, formatNumber(e.sales_count), formatCurrency(e.total_sales)]) });
         yPos = (doc as any).lastAutoTable.finalY + 10;
     }
-    if (salesByPaymentMethod.length > 0) {
+    if (salesByPaymentMethod && salesByPaymentMethod.length > 0) {
         addPageIfNeeded();
         autoTable(doc, { startY: yPos, head: [['Ventas por Método de Pago', 'No. Transacciones', 'Total']], body: salesByPaymentMethod.map(p => [p.payment_method, formatNumber(p.transaction_count), formatCurrency(p.total_amount)]) });
         yPos = (doc as any).lastAutoTable.finalY + 10;
@@ -238,7 +238,7 @@ export default function ReportsPage() {
           ) : null}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2"><CardHeader><CardTitle>Resumen de Ventas</CardTitle></CardHeader><CardContent>{loading ? <Skeleton className="h-[350px] w-full" /> : <ReportsSalesChart data={salesOverTime} />}</CardContent></Card>
-            <Card><CardHeader><CardTitle>Productos Más Vendidos</CardTitle><CardDescription>Top 5 por ingresos en el período.</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-center">Cant.</TableHead><TableHead className="text-right">Ingresos</TableHead></TableRow></TableHeader><TableBody>{loading ? ([...Array(5)].map((_, i) => (<TableRow key={i}><TableCell><Skeleton className="h-5 w-3/4" /></TableCell><TableCell><Skeleton className="h-5 w-1/2 mx-auto" /></TableCell><TableCell><Skeleton className="h-5 w-3/4 float-right" /></TableCell></TableRow>))) : topProducts.length > 0 ? (topProducts.map(p => (<TableRow key={p.product_name}><TableCell className="font-medium">{p.product_name}</TableCell><TableCell className="text-center">{formatNumber(p.total_quantity)}</TableCell><TableCell className="text-right">{formatCurrency(p.total_revenue)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={3} className="h-24 text-center">No hay datos de ventas.</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+            <Card><CardHeader><CardTitle>Productos Más Vendidos</CardTitle><CardDescription>Top 5 por ingresos en el período.</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-center">Cant.</TableHead><TableHead className="text-right">Ingresos</TableHead></TableRow></TableHeader><TableBody>{loading ? ([...Array(5)].map((_, i) => (<TableRow key={i}><TableCell><Skeleton className="h-5 w-3/4" /></TableCell><TableCell><Skeleton className="h-5 w-1/2 mx-auto" /></TableCell><TableCell><Skeleton className="h-5 w-3/4 float-right" /></TableCell></TableRow>))) : topProducts && topProducts.length > 0 ? (topProducts.map(p => (<TableRow key={p.product_name}><TableCell className="font-medium">{p.product_name}</TableCell><TableCell className="text-center">{formatNumber(p.total_quantity)}</TableCell><TableCell className="text-right">{formatCurrency(p.total_revenue)}</TableCell></TableRow>))) : (<TableRow><TableCell colSpan={3} className="h-24 text-center">No hay datos de ventas.</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
           </div>
         </TabsContent>
         <TabsContent value="inventory" className="space-y-4 mt-4">
@@ -256,7 +256,7 @@ export default function ReportsPage() {
           ) : null}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2"><CardHeader><CardTitle>Flujo de Inventario</CardTitle></CardHeader><CardContent>{loading ? <Skeleton className="h-[350px] w-full" /> : <InventoryMovementsChart data={inventoryMovements} />}</CardContent></Card>
-            <Card><CardHeader><CardTitle>Ajustes de Stock Principales</CardTitle><CardDescription>Top 5 (excl. ventas/compras).</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Motivo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader><TableBody>{loading ? ([...Array(5)].map((_, i) => (<TableRow key={i}><TableCell><Skeleton className="h-5 w-3/4" /></TableCell><TableCell><Skeleton className="h-5 w-1/2" /></TableCell><TableCell><Skeleton className="h-5 w-3/4 float-right" /></TableCell></TableRow>))) : topAdjustedProducts.length > 0 ? (topAdjustedProducts.map((p, i) => (<TableRow key={i}><TableCell className="font-medium">{p.product_name}</TableCell><TableCell>{p.reason}</TableCell><TableCell className="text-right"><Badge variant={p.total_quantity_adjusted > 0 ? "secondary" : "destructive"}>{formatNumber(p.total_quantity_adjusted)}</Badge></TableCell></TableRow>))) : (<TableRow><TableCell colSpan={3} className="h-24 text-center">No hay ajustes de stock.</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+            <Card><CardHeader><CardTitle>Ajustes de Stock Principales</CardTitle><CardDescription>Top 5 (excl. ventas/compras).</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Producto</TableHead><TableHead>Motivo</TableHead><TableHead className="text-right">Cantidad</TableHead></TableRow></TableHeader><TableBody>{loading ? ([...Array(5)].map((_, i) => (<TableRow key={i}><TableCell><Skeleton className="h-5 w-3/4" /></TableCell><TableCell><Skeleton className="h-5 w-1/2" /></TableCell><TableCell><Skeleton className="h-5 w-3/4 float-right" /></TableCell></TableRow>))) : topAdjustedProducts && topAdjustedProducts.length > 0 ? (topAdjustedProducts.map((p, i) => (<TableRow key={i}><TableCell className="font-medium">{p.product_name}</TableCell><TableCell>{p.reason}</TableCell><TableCell className="text-right"><Badge variant={p.total_quantity_adjusted > 0 ? "secondary" : "destructive"}>{formatNumber(p.total_quantity_adjusted)}</Badge></TableCell></TableRow>))) : (<TableRow><TableCell colSpan={3} className="h-24 text-center">No hay ajustes de stock.</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
           </div>
         </TabsContent>
         <TabsContent value="performance" className="space-y-4 mt-4">
@@ -279,7 +279,7 @@ export default function ReportsPage() {
                           <TableCell><Skeleton className="h-5 w-1/2 mx-auto" /></TableCell>
                           <TableCell><Skeleton className="h-5 w-3/4 float-right" /></TableCell>
                         </TableRow>
-                      ))) : salesByEmployee.length > 0 ? (
+                      ))) : salesByEmployee && salesByEmployee.length > 0 ? (
                         salesByEmployee.map(e => (
                           <TableRow key={e.employee_email}>
                             <TableCell className="font-medium">{e.employee_email}</TableCell>
@@ -312,7 +312,7 @@ export default function ReportsPage() {
                             <TableCell><Skeleton className="h-5 w-1/2 mx-auto" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-3/4 float-right" /></TableCell>
                           </TableRow>
-                        ))) : salesByPaymentMethod.length > 0 ? (
+                        ))) : salesByPaymentMethod && salesByPaymentMethod.length > 0 ? (
                           salesByPaymentMethod.map(p => (
                             <TableRow key={p.payment_method}>
                               <TableCell className="font-medium capitalize">{p.payment_method}</TableCell>
