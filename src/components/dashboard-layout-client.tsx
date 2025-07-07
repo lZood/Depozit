@@ -17,6 +17,8 @@ import {
   Search,
   LayoutGrid,
   LoaderCircle,
+  Shield,
+  Briefcase,
 } from "lucide-react";
 import * as React from "react";
 
@@ -252,11 +254,11 @@ export default function DashboardLayoutClient({
               <nav className="grid gap-6 text-lg font-medium">
                 <Link
                   href="/dashboard"
-                  className="flex items-center gap-4 px-2.5 text-primary"
+                  className="flex items-center gap-4 px-2.5 text-primary font-bold"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Package2 className="h-6 w-6" />
-                  <span className="font-bold">Depozit</span>
+                  <span>Depozit</span>
                 </Link>
                 {navItems.map((item) => {
                   const isActive = item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
@@ -319,8 +321,15 @@ export default function DashboardLayoutClient({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>
-                {userRole === 'admin' ? 'Cuenta de Administrador' : 'Cuenta de Empleado'}
+              <DropdownMenuLabel className="flex items-center gap-2 font-normal">
+                {userRole === 'admin' ? (
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Briefcase className="h-4 w-4 text-muted-foreground" />
+                )}
+                <span>
+                  {userRole === 'admin' ? 'Administrador' : 'Empleado'}
+                </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {showSettings && <DropdownMenuItem asChild><Link href="/dashboard/settings">Configuración</Link></DropdownMenuItem>}
