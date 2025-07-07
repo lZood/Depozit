@@ -59,6 +59,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 
+const PAGE_SIZE = 12;
 
 type Product = {
   id: string;
@@ -84,9 +85,12 @@ type AdjustmentFormValues = z.infer<typeof adjustmentFormSchema>;
 
 export default function InventoryPage() {
   const [products, setProducts] = React.useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = React.useState<Product[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [page, setPage] = React.useState(0);
+  const [hasMore, setHasMore] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
+
   const [dialogState, setDialogState] = React.useState<{ open: boolean; product: Product | null }>({
     open: false,
     product: null,
@@ -103,39 +107,63 @@ export default function InventoryPage() {
       reason: "Compra a proveedor",
     },
   });
+  
+  const fetchProducts = React.useCallback(async (currentPage: number, search: string) => {
+    const isSearch = search.trim().length > 0;
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
+    if (currentPage === 0) setLoading(true);
+    else setLoadingMore(true);
+
+    let query = supabase
       .from("products")
       .select("id, name, sku, stock, image_url, categories(name)")
       .order("name", { ascending: true });
 
-    if (error) {
-      console.error("Error fetching products:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los productos.",
-        variant: "destructive",
-      });
-    } else if (data) {
-      setProducts(data as Product[]);
-      setFilteredProducts(data as Product[]);
+    if (isSearch) {
+      query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,barcode.eq.${search}`);
+    } else {
+      const from = currentPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      query = query.range(from, to);
     }
-    setLoading(false);
+    
+    const { data, error } = await query;
+    
+    if (error) {
+        console.error("Error fetching products:", error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los productos.",
+          variant: "destructive",
+        });
+    } else if (data) {
+        setProducts(prev => currentPage === 0 ? data : [...prev, ...data]);
+        setHasMore(isSearch ? false : data.length === PAGE_SIZE);
+        if (!isSearch) {
+          setPage(currentPage + 1);
+        }
+    }
+    
+    if (currentPage === 0) setLoading(false);
+    else setLoadingMore(false);
+  }, [supabase, toast]);
+
+  // Initial load and search handling
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(0); // Reset page for new search/initial load
+      fetchProducts(0, searchQuery);
+    }, 500); // Debounce search
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, fetchProducts]);
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchProducts(page, searchQuery);
+    }
   };
 
-  React.useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  React.useEffect(() => {
-    const results = products.filter(product =>
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    setFilteredProducts(results);
-  }, [searchQuery, products]);
 
   const handleAdjustStockClick = (product: Product) => {
     form.reset();
@@ -236,7 +264,7 @@ export default function InventoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {loading && products.length === 0 ? (
                   [...Array(5)].map((_, i) => (
                     <TableRow key={i}>
                       <TableCell className="hidden sm:table-cell">
@@ -250,8 +278,8 @@ export default function InventoryPage() {
                       </TableCell>
                     </TableRow>
                   ))
-                ) : filteredProducts.length > 0 ? (
-                  filteredProducts.map((product) => (
+                ) : products.length > 0 ? (
+                  products.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell className="hidden sm:table-cell">
                         <Image
@@ -295,10 +323,10 @@ export default function InventoryPage() {
           </div>
           {/* Mobile Card List */}
            <div className="grid gap-4 md:hidden">
-              {loading ? (
+              {loading && products.length === 0 ? (
                   [...Array(3)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)
-              ) : filteredProducts.length > 0 ? (
-                  filteredProducts.map(product => (
+              ) : products.length > 0 ? (
+                  products.map(product => (
                       <div key={product.id} className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
                           <div className="flex gap-4">
                               <Image
@@ -338,6 +366,14 @@ export default function InventoryPage() {
                     </div>
                 </div>
               )}
+          </div>
+          {/* Load More Section */}
+          <div className="mt-6 flex items-center justify-center">
+            {!loading && hasMore && (
+              <Button onClick={handleLoadMore} disabled={loadingMore}>
+                {loadingMore ? "Cargando..." : "Cargar más"}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -434,5 +470,3 @@ export default function InventoryPage() {
     </div>
   );
 }
-
-    
