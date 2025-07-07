@@ -16,6 +16,7 @@ import {
   PanelLeft,
   Search,
   LayoutGrid,
+  LoaderCircle,
 } from "lucide-react";
 import * as React from "react";
 
@@ -34,6 +35,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  PopoverAnchor,
+} from "@/components/ui/popover";
+import { Skeleton } from "./ui/skeleton";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+
+type SearchResult = {
+  id: string;
+  name: string;
+  sku: string | null;
+  image_url: string | null;
+};
 
 export default function DashboardLayoutClient({
   children,
@@ -46,13 +62,57 @@ export default function DashboardLayoutClient({
   const router = useRouter();
   const supabase = createClient();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  
+  // State for global product search
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [searchResults, setSearchResults] = React.useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = React.useState(false);
+  const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
 
   const handleLogout = async () => {
-    console.log('[DashboardLayoutClient] Logging out...');
     await supabase.auth.signOut();
-    // Forzamos una navegación completa para asegurar que el estado se limpie.
     window.location.href = '/';
   };
+
+  const handleSearch = React.useCallback(async (query: string) => {
+      if (query.length < 2) {
+        setSearchResults([]);
+        setIsPopoverOpen(false);
+        return;
+      }
+      setIsSearching(true);
+      setIsPopoverOpen(true);
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, sku, image_url')
+        .or(`name.ilike.%${query}%,sku.ilike.%${query}%`)
+        .eq('status', 'active')
+        .limit(5);
+
+      setSearchResults(data || []);
+      setIsSearching(false);
+  }, [supabase]);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      handleSearch(searchQuery);
+    }, 300); // Debounce search
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, handleSearch]);
+
+  const handleProductSelection = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsPopoverOpen(false);
+  };
+  
+  // Close popover if we click outside
+  React.useEffect(() => {
+    if (!pathname.includes('/products/')) {
+        handleProductSelection();
+    }
+  }, [pathname]);
 
   const allNavItems = [
     { href: "/dashboard", icon: Home, label: "Panel", roles: ['admin', 'employee'] },
@@ -76,7 +136,60 @@ export default function DashboardLayoutClient({
   const navItems = allNavItems.filter(item => item.roles.includes(userRole));
   const showSettings = settingsNav.roles.includes(userRole);
   
-  const pageTitle = [...navItems, ...(showSettings ? [settingsNav] : [])].find(item => pathname === item.href)?.label || "Panel";
+  const pageTitle = [...navItems, ...(showSettings ? [settingsNav] : [])].find(item => pathname.startsWith(item.href) && item.href !== '/dashboard')?.label || "Panel";
+
+  const renderSearchPopover = () => (
+    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+        <PopoverAnchor asChild>
+            <div className="relative ml-auto flex-1 md:grow-0">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                type="search"
+                placeholder="Buscar producto por nombre o SKU..."
+                className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
+        </PopoverAnchor>
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-2" align="start">
+            {isSearching && (
+                <div className="flex items-center justify-center p-4">
+                    <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+            )}
+            {!isSearching && searchResults.length === 0 && searchQuery.length > 1 && (
+                 <div className="py-6 text-center text-sm text-muted-foreground">
+                    No se encontraron productos.
+                </div>
+            )}
+            {!isSearching && searchResults.length > 0 && (
+                <div className="flex flex-col gap-1">
+                {searchResults.map(product => (
+                    <Link
+                        key={product.id}
+                        href={`/dashboard/products/${product.id}/details`}
+                        className="flex items-center gap-3 rounded-md p-2 text-sm hover:bg-accent"
+                        onClick={handleProductSelection}
+                    >
+                        <Avatar className="h-8 w-8">
+                            {product.image_url ? (
+                                <Image src={product.image_url} alt={product.name} width={32} height={32} className="object-cover" />
+                            ) : (
+                                <AvatarFallback>{product.name.charAt(0)}</AvatarFallback>
+                            )}
+                        </Avatar>
+                        <div className="flex-1 overflow-hidden">
+                            <p className="font-medium truncate">{product.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">SKU: {product.sku || 'N/A'}</p>
+                        </div>
+                    </Link>
+                ))}
+                </div>
+            )}
+        </PopoverContent>
+    </Popover>
+  );
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -95,7 +208,7 @@ export default function DashboardLayoutClient({
               href={item.href}
               className={cn(
                 "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                pathname === item.href && "bg-accent text-accent-foreground"
+                pathname.startsWith(item.href) && item.href !== '/dashboard' ? "bg-accent text-accent-foreground" : (pathname === '/dashboard' && item.href === '/dashboard' ? 'bg-accent text-accent-foreground' : '')
               )}
             >
               <item.icon className="h-5 w-5" />
@@ -144,7 +257,7 @@ export default function DashboardLayoutClient({
                     href={item.href}
                     className={cn(
                       "flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground",
-                      pathname === item.href && "text-foreground"
+                      pathname.startsWith(item.href) && item.href !== '/dashboard' ? "text-foreground" : (pathname === '/dashboard' && item.href === '/dashboard' ? 'text-foreground' : '')
                     )}
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -168,21 +281,13 @@ export default function DashboardLayoutClient({
               </nav>
             </SheetContent>
           </Sheet>
-          <h1 className="text-xl font-semibold hidden md:flex">{pageTitle}</h1>
-          <div className="relative ml-auto flex-1 md:grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar productos..."
-              className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
-            />
-          </div>
+          {renderSearchPopover()}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="overflow-hidden rounded-full"
+                className="overflow-hidden rounded-full ml-2"
               >
                 <Image
                     src="https://placehold.co/36x36.png"
