@@ -51,10 +51,7 @@ type SalesByEmployee = { employee_email: string; total_sales: number; sales_coun
 type SalesByPaymentMethod = { payment_method: string; total_amount: number; transaction_count: number; };
 
 export default function ReportsPage() {
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: new Date(),
-  });
+  const [date, setDate] = React.useState<DateRange | undefined>();
 
   // States for all reports data
   const [salesSummary, setSalesSummary] = React.useState<SalesSummary | null>(null);
@@ -69,6 +66,14 @@ export default function ReportsPage() {
 
   const supabase = createClient();
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    // Set initial date range on client-side to prevent hydration mismatch
+    setDate({
+      from: startOfMonth(new Date()),
+      to: new Date(),
+    });
+  }, []);
 
   React.useEffect(() => {
     const fetchReportData = async () => {
@@ -95,20 +100,27 @@ export default function ReportsPage() {
           inventorySummaryRes, inventoryMovementsRes, topAdjustedProductsRes,
           salesByEmployeeRes, salesByPaymentMethodRes,
       ] = await Promise.all(reportsToFetch);
+      
+      if (salesByEmployeeRes.error) {
+        console.error("Error fetching sales by employee:", salesByEmployeeRes.error);
+        toast({ title: "Error de permisos", description: "No se pudo cargar el reporte de ventas por empleado.", variant: "destructive" });
+      }
 
       setSalesSummary(salesSummaryRes.data as SalesSummary);
-      setSalesOverTime(salesOverTimeRes.data as SalesOverTime[]);
-      setTopProducts(topProductsRes.data as TopProduct[]);
+      setSalesOverTime((salesOverTimeRes.data as SalesOverTime[]) || []);
+      setTopProducts((topProductsRes.data as TopProduct[]) || []);
       setInventorySummary(inventorySummaryRes.data as InventorySummary);
-      setInventoryMovements(inventoryMovementsRes.data as InventoryMovementsOverTime[]);
-      setTopAdjustedProducts(topAdjustedProductsRes.data as TopAdjustedProduct[]);
-      setSalesByEmployee(salesByEmployeeRes.data as SalesByEmployee[]);
-      setSalesByPaymentMethod(salesByPaymentMethodRes.data as SalesByPaymentMethod[]);
+      setInventoryMovements((inventoryMovementsRes.data as InventoryMovementsOverTime[]) || []);
+      setTopAdjustedProducts((topAdjustedProductsRes.data as TopAdjustedProduct[]) || []);
+      setSalesByEmployee((salesByEmployeeRes.data as SalesByEmployee[]) || []);
+      setSalesByPaymentMethod((salesByPaymentMethodRes.data as SalesByPaymentMethod[]) || []);
 
       setLoading(false);
     };
 
-    fetchReportData();
+    if (date) {
+      fetchReportData();
+    }
   }, [date, supabase, toast]);
   
   const formatCurrency = (value: number | null | undefined) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value || 0);
