@@ -202,34 +202,40 @@ export default function DashboardLayoutClient({
             <Package2 className="h-4 w-4 transition-all group-hover:scale-110" />
             <span className="sr-only">Depozit</span>
           </Link>
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                pathname.startsWith(item.href) && item.href !== '/dashboard' ? "bg-accent text-accent-foreground" : (pathname === '/dashboard' && item.href === '/dashboard' ? 'bg-accent text-accent-foreground' : '')
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              <span className="sr-only">{item.label}</span>
-            </Link>
-          ))}
+          {navItems.map((item) => {
+             const isActive = item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
+             return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
+                  isActive && "bg-accent text-accent-foreground"
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="sr-only">{item.label}</span>
+              </Link>
+             )
+            })}
         </nav>
         <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-          {showSettings && (
-            <Link
-              href={settingsNav.href}
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
-                pathname.startsWith(settingsNav.href) &&
-                  "bg-accent text-accent-foreground"
-              )}
-            >
-              <settingsNav.icon className="h-5 w-5" />
-              <span className="sr-only">{settingsNav.label}</span>
-            </Link>
-          )}
+          {showSettings && (() => {
+            const isActive = pathname.startsWith(settingsNav.href);
+            return (
+              <Link
+                href={settingsNav.href}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8",
+                  isActive &&
+                    "bg-accent text-accent-foreground"
+                )}
+              >
+                <settingsNav.icon className="h-5 w-5" />
+                <span className="sr-only">{settingsNav.label}</span>
+              </Link>
+            )
+          })()}
         </nav>
       </aside>
       <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
@@ -246,39 +252,45 @@ export default function DashboardLayoutClient({
               <nav className="grid gap-6 text-lg font-medium">
                 <Link
                   href="/dashboard"
-                  className="flex items-center gap-4 px-2.5 font-semibold text-foreground"
+                  className="flex items-center gap-4 px-2.5 text-primary"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Package2 className="h-6 w-6" />
-                  <span>Depozit</span>
+                  <span className="font-bold">Depozit</span>
                 </Link>
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground",
-                      pathname.startsWith(item.href) && item.href !== '/dashboard' ? "text-foreground" : (pathname === '/dashboard' && item.href === '/dashboard' ? 'text-foreground' : '')
-                    )}
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.label}
-                  </Link>
-                ))}
-                 {showSettings && (
+                {navItems.map((item) => {
+                  const isActive = item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
+                  return (
                     <Link
-                        href={settingsNav.href}
-                        className={cn(
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
                         "flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground",
-                        pathname.startsWith(settingsNav.href) && "text-foreground"
-                        )}
-                        onClick={() => setMobileMenuOpen(false)}
+                        isActive && "text-foreground font-semibold"
+                      )}
+                      onClick={() => setMobileMenuOpen(false)}
                     >
-                        <settingsNav.icon className="h-5 w-5" />
-                        {settingsNav.label}
+                      <item.icon className="h-5 w-5" />
+                      {item.label}
                     </Link>
-                 )}
+                  )
+                })}
+                 {showSettings && (() => {
+                    const isActive = pathname.startsWith(settingsNav.href);
+                    return (
+                      <Link
+                          href={settingsNav.href}
+                          className={cn(
+                          "flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground",
+                          isActive && "text-foreground font-semibold"
+                          )}
+                          onClick={() => setMobileMenuOpen(false)}
+                      >
+                          <settingsNav.icon className="h-5 w-5" />
+                          {settingsNav.label}
+                      </Link>
+                    )
+                 })()}
               </nav>
             </SheetContent>
           </Sheet>
