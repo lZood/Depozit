@@ -203,8 +203,8 @@ export default function CategoriesPage() {
         <Accordion type="single" collapsible className="w-full">
           {categories.map((category) => (
             <AccordionItem value={category.id} key={category.id} className="border rounded-md mb-2 bg-card">
-              <AccordionTrigger className="group flex w-full items-center px-4 py-3 hover:no-underline">
-                  <div className="flex-1 text-left">
+              <AccordionTrigger className="group flex w-full items-center justify-between px-4 py-3 hover:no-underline">
+                  <div className="flex-1 text-left mr-4">
                     <div className="flex items-center gap-4">
                       <span className="font-semibold text-lg">{category.name}</span>
                       <Badge variant="secondary">{category.products.length} Productos</Badge>
@@ -226,7 +226,7 @@ export default function CategoriesPage() {
                     <div onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                          <Button aria-haspopup="true" size="icon" variant="ghost" className="h-8 w-8">
                             <MoreHorizontal className="h-4 w-4" />
                             <span className="sr-only">Alternar menú</span>
                           </Button>
