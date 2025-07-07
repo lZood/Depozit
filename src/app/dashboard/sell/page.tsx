@@ -2,6 +2,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import {
   Search,
   Plus,
@@ -12,6 +13,7 @@ import {
   CreditCard,
   UserX,
   User,
+  Star,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -53,6 +55,7 @@ type Product = {
   sale_price: number;
   stock: number;
   cost_price: number;
+  image_url: string | null;
 };
 
 type CartItem = Product & {
@@ -85,8 +88,31 @@ export default function SellPage() {
   const [customerSearch, setCustomerSearch] = React.useState("");
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
 
+  const [featuredProducts, setFeaturedProducts] = React.useState<Product[]>([]);
+  const [loadingFeatured, setLoadingFeatured] = React.useState(true);
+
   const supabase = createClient();
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    const fetchFeatured = async () => {
+      setLoadingFeatured(true);
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, sku, sale_price, stock, cost_price, image_url")
+        .eq('is_featured', true)
+        .eq('status', 'active')
+        .order('name');
+      
+      if (error) {
+        toast({ title: "Error", description: "No se pudieron cargar los productos destacados.", variant: "destructive" });
+      } else {
+        setFeaturedProducts(data as Product[]);
+      }
+      setLoadingFeatured(false);
+    }
+    fetchFeatured();
+  }, [supabase, toast]);
 
   // Product search logic
   const handleSearch = React.useCallback(async (query: string) => {
@@ -97,8 +123,8 @@ export default function SellPage() {
     setLoadingSearch(true);
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, sku, sale_price, stock, cost_price")
-      .or(`name.ilike.%${query}%,sku.ilike.%${query}%`)
+      .select("id, name, sku, sale_price, stock, cost_price, image_url")
+      .or(`name.ilike.%${query}%,sku.ilike.%${query}%,barcode.eq.${query}`)
       .eq('status', 'active')
       .limit(10);
     
@@ -116,6 +142,22 @@ export default function SellPage() {
     }, 300);
     return () => clearTimeout(debounce);
   }, [searchQuery, handleSearch]);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (searchResults.length === 1) {
+        addToCart(searchResults[0]);
+      } else if (searchQuery.trim().length > 0 && searchResults.length === 0) {
+        toast({
+          title: "No encontrado",
+          description: "No se encontró ningún producto con ese código o nombre.",
+          variant: "destructive",
+        })
+      }
+    }
+  };
+
 
   // Customer fetch logic
   React.useEffect(() => {
@@ -243,64 +285,102 @@ export default function SellPage() {
     <>
       <div className="grid flex-1 auto-rows-max gap-4 lg:grid-cols-3 xl:grid-cols-5">
         <div className="lg:col-span-2 xl:col-span-3">
-          <Card className="h-full">
+          <Card className="h-full flex flex-col">
             <CardHeader className="pb-4">
               <CardTitle>Agregar Productos a la Venta</CardTitle>
               <CardDescription>
-                Busque un producto por nombre o SKU para agregarlo a la venta.
+                Busque un producto o use el acceso rápido para agregarlo a la venta.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar por nombre o SKU..." 
-                  className="pl-8" 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  autoFocus 
-                />
-              </div>
-              <div className="mt-4 space-y-2">
-                {loadingSearch && (
-                  <div className="space-y-2">
-                    {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-                  </div>
-                )}
-                {searchResults.length > 0 && !loadingSearch && (
-                  <Card>
-                    <CardContent className="p-2">
-                      {searchResults.map((product) => (
-                        <Button 
-                            key={product.id} 
-                            variant="ghost" 
-                            className="w-full justify-start h-auto p-2 text-left"
-                            onClick={() => addToCart(product)}
-                            disabled={product.stock < 1}
-                          >
-                            <div className="flex justify-between w-full items-center">
-                              <div>
-                                <p className="font-semibold">{product.name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  SKU: {product.sku || 'N/A'} - 
-                                  <span className={product.stock > 0 ? 'text-green-600' : 'text-red-600'}>
-                                    Existencias: {product.stock}
-                                  </span>
-                                </p>
-                              </div>
-                              <p className="font-bold text-lg">${product.sale_price.toFixed(2)}</p>
-                            </div>
-                        </Button>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
-                {searchQuery.length > 1 && searchResults.length === 0 && !loadingSearch && (
-                  <div className="text-center text-muted-foreground py-4">
-                    No se encontraron productos.
-                  </div>
-                )}
-              </div>
+            <CardContent className="flex-1 flex flex-col gap-4">
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                    placeholder="Escanear código de barras o buscar por nombre/SKU..." 
+                    className="pl-8" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    autoFocus 
+                    />
+                </div>
+                <div className="mt-2 space-y-2">
+                    {loadingSearch && (
+                    <div className="space-y-2">
+                        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                    </div>
+                    )}
+                    {searchResults.length > 0 && !loadingSearch && (
+                    <Card>
+                        <CardContent className="p-2">
+                        {searchResults.map((product) => (
+                            <Button 
+                                key={product.id} 
+                                variant="ghost" 
+                                className="w-full justify-start h-auto p-2 text-left"
+                                onClick={() => addToCart(product)}
+                                disabled={product.stock < 1}
+                            >
+                                <div className="flex justify-between w-full items-center">
+                                <div>
+                                    <p className="font-semibold">{product.name}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                    SKU: {product.sku || 'N/A'} - 
+                                    <span className={product.stock > 0 ? 'text-green-600' : 'text-red-600'}>
+                                        Existencias: {product.stock}
+                                    </span>
+                                    </p>
+                                </div>
+                                <p className="font-bold text-lg">${product.sale_price.toFixed(2)}</p>
+                                </div>
+                            </Button>
+                        ))}
+                        </CardContent>
+                    </Card>
+                    )}
+                </div>
+              <Separator className="my-4" />
+                <div className="space-y-2 flex flex-col flex-1">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                        <Star className="h-4 w-4" />
+                        Acceso Rápido
+                    </h3>
+                    {loadingFeatured ? (
+                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+                        </div>
+                    ) : (
+                        <ScrollArea className="flex-1">
+                            {featuredProducts.length > 0 ? (
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pr-4">
+                                {featuredProducts.map((product) => (
+                                    <Button
+                                    key={product.id}
+                                    variant="outline"
+                                    className="h-auto aspect-square flex flex-col justify-center gap-2 p-2"
+                                    onClick={() => addToCart(product)}
+                                    disabled={product.stock < 1}
+                                    >
+                                    <Image
+                                        alt={product.name}
+                                        className="aspect-square rounded-md object-cover"
+                                        height="64"
+                                        src={product.image_url || `https://placehold.co/64x64.png`}
+                                        width="64"
+                                        data-ai-hint="product photo"
+                                    />
+                                    <p className="text-xs text-center font-medium line-clamp-2">{product.name}</p>
+                                    </Button>
+                                ))}
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                                    Marque productos con una estrella en la página de Productos para verlos aquí.
+                                </div>
+                            )}
+                        </ScrollArea>
+                    )}
+                </div>
             </CardContent>
           </Card>
         </div>

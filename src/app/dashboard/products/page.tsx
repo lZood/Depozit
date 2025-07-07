@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   Search,
   Filter,
+  Star,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,6 +30,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { cn } from "@/lib/utils"
 
 const productFormSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio."),
@@ -70,6 +72,7 @@ type Product = {
   stock: number;
   image_url: string | null;
   category_id: string | null;
+  is_featured: boolean;
   categories: {
     name: string;
   } | null;
@@ -106,7 +109,9 @@ export default function ProductsPage() {
     setLoading(true);
     let query = supabase.from('products').select('*, categories(name)');
 
-    if (activeTab !== 'all') {
+    if (activeTab === 'featured') {
+      query = query.eq('is_featured', true);
+    } else if (activeTab !== 'all') {
       query = query.eq('status', activeTab);
     }
 
@@ -255,6 +260,21 @@ export default function ProductsPage() {
       await fetchProducts();
     }
   }
+  
+  const handleToggleFeatured = async (product: Product) => {
+    const { error } = await supabase
+      .from('products')
+      .update({ is_featured: !product.is_featured })
+      .eq('id', product.id);
+
+    if (error) {
+      toast({ title: "Error", description: "No se pudo actualizar el producto.", variant: "destructive" });
+    } else {
+      toast({ title: "Éxito", description: `Producto ${!product.is_featured ? 'marcado como destacado' : 'quitado de destacados'}.` });
+      fetchProducts();
+    }
+  };
+
 
   const handleEditClick = (product: Product) => {
     setEditingProduct(product);
@@ -341,6 +361,7 @@ export default function ProductsPage() {
             <TabsTrigger value="all">Todos</TabsTrigger>
             <TabsTrigger value="active">Activo</TabsTrigger>
             <TabsTrigger value="draft">Borrador</TabsTrigger>
+            <TabsTrigger value="featured">Destacados</TabsTrigger>
             <TabsTrigger value="archived" className="hidden sm:flex">
               Archivado
             </TabsTrigger>
@@ -659,6 +680,7 @@ export default function ProductsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[48px]"></TableHead>
                   <TableHead className="hidden w-[100px] sm:table-cell">
                     <span className="sr-only">Imagen</span>
                   </TableHead>
@@ -680,6 +702,7 @@ export default function ProductsPage() {
                  {loading ? (
                   [...Array(5)].map((_, i) => (
                     <TableRow key={i}>
+                      <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <Skeleton className="h-16 w-16 rounded-md" />
                       </TableCell>
@@ -696,6 +719,12 @@ export default function ProductsPage() {
                 ) : products.length > 0 ? (
                   products.map((product) => (
                     <TableRow key={product.id}>
+                       <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => handleToggleFeatured(product)}>
+                          <Star className={cn("h-5 w-5", product.is_featured ? "text-yellow-400 fill-yellow-400" : "text-muted-foreground")} />
+                          <span className="sr-only">Marcar como destacado</span>
+                        </Button>
+                      </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <Image
                           alt={product.name || "Imagen del producto"}
@@ -746,7 +775,7 @@ export default function ProductsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center h-24">
+                    <TableCell colSpan={8} className="text-center h-24">
                       No se encontraron productos. Comience agregando uno nuevo.
                     </TableCell>
                   </TableRow>
