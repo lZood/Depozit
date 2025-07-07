@@ -32,7 +32,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -57,6 +56,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
 
 type Product = {
@@ -218,77 +218,126 @@ export default function InventoryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="hidden w-[100px] sm:table-cell">
-                  Imagen
-                </TableHead>
-                <TableHead>Producto</TableHead>
-                <TableHead className="hidden md:table-cell">Categoría</TableHead>
-                <TableHead className="text-center">Existencias Actuales</TableHead>
-                <TableHead>
-                  <span className="sr-only">Acciones</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="hidden sm:table-cell">
-                      <Skeleton className="h-16 w-16 rounded-md" />
-                    </TableCell>
-                    <TableCell><Skeleton className="h-6 w-48" /></TableCell>
-                    <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-24" /></TableCell>
-                    <TableCell className="text-center"><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
-                    <TableCell className="text-right">
-                       <Skeleton className="h-9 w-32 rounded-md float-right" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="hidden sm:table-cell">
-                      <Image
-                        alt={product.name}
-                        className="aspect-square rounded-md object-cover"
-                        height="64"
-                        src={product.image_url || `https://placehold.co/64x64.png`}
-                        width="64"
-                        data-ai-hint="product photo"
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {product.name}
-                       <div className="text-xs text-muted-foreground">SKU: {product.sku || 'N/A'}</div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {product.categories?.name || "Sin Categoría"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={getStockBadgeVariant(product.stock)} className="text-base font-bold px-3 py-1">
-                        {product.stock}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" onClick={() => handleAdjustStockClick(product)}>
-                        <ArrowRightLeft className="mr-2" />
-                        Ajustar Stock
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
+          {/* Desktop Table */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center h-24">
-                    No se encontraron productos que coincidan con la búsqueda.
-                  </TableCell>
+                  <TableHead className="hidden w-[100px] sm:table-cell">
+                    Imagen
+                  </TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead className="hidden md:table-cell">Categoría</TableHead>
+                  <TableHead className="text-center">Existencias Actuales</TableHead>
+                  <TableHead>
+                    <span className="sr-only">Acciones</span>
+                  </TableHead>
                 </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  [...Array(5)].map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="hidden sm:table-cell">
+                        <Skeleton className="h-16 w-16 rounded-md" />
+                      </TableCell>
+                      <TableCell><Skeleton className="h-6 w-48" /></TableCell>
+                      <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-24" /></TableCell>
+                      <TableCell className="text-center"><Skeleton className="h-6 w-16 mx-auto" /></TableCell>
+                      <TableCell className="text-right">
+                        <Skeleton className="h-9 w-32 rounded-md float-right" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : filteredProducts.length > 0 ? (
+                  filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="hidden sm:table-cell">
+                        <Image
+                          alt={product.name}
+                          className="aspect-square rounded-md object-cover"
+                          height="64"
+                          src={product.image_url || `https://placehold.co/64x64.png`}
+                          width="64"
+                          data-ai-hint="product photo"
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {product.name}
+                        <div className="text-xs text-muted-foreground">SKU: {product.sku || 'N/A'}</div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {product.categories?.name || "Sin Categoría"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={getStockBadgeVariant(product.stock)} className="text-base font-bold px-3 py-1">
+                          {product.stock}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" onClick={() => handleAdjustStockClick(product)}>
+                          <ArrowRightLeft className="mr-2" />
+                          Ajustar Stock
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center h-24">
+                      No se encontraron productos que coincidan con la búsqueda.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {/* Mobile Card List */}
+           <div className="grid gap-4 md:hidden">
+              {loading ? (
+                  [...Array(3)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)
+              ) : filteredProducts.length > 0 ? (
+                  filteredProducts.map(product => (
+                      <div key={product.id} className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+                          <div className="flex gap-4">
+                              <Image
+                                alt={product.name}
+                                className="aspect-square rounded-md object-cover"
+                                height="80"
+                                src={product.image_url || `https://placehold.co/80x80.png`}
+                                width="80"
+                                data-ai-hint="product photo"
+                              />
+                              <div className="flex-1 space-y-1">
+                                  <p className="font-medium">{product.name}</p>
+                                  <p className="text-xs text-muted-foreground">SKU: {product.sku || 'N/A'}</p>
+                                  <p className="text-xs text-muted-foreground">{product.categories?.name || "Sin Categoría"}</p>
+                              </div>
+                          </div>
+                          <Separator className="my-4" />
+                          <div className="flex items-center justify-between">
+                              <div className="flex flex-col items-center">
+                                  <span className="text-xs text-muted-foreground">Existencias</span>
+                                  <Badge variant={getStockBadgeVariant(product.stock)} className="text-base font-bold px-3 py-1 mt-1">
+                                      {product.stock}
+                                  </Badge>
+                              </div>
+                              <Button size="sm" onClick={() => handleAdjustStockClick(product)}>
+                                <ArrowRightLeft className="mr-2" />
+                                Ajustar
+                              </Button>
+                          </div>
+                      </div>
+                  ))
+              ) : (
+                  <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-48">
+                    <div className="flex flex-col items-center gap-1 text-center">
+                        <h3 className="text-2xl font-bold tracking-tight">No se encontraron productos</h3>
+                        <p className="text-sm text-muted-foreground">Intenta ajustar la búsqueda.</p>
+                    </div>
+                </div>
               )}
-            </TableBody>
-          </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -312,20 +361,16 @@ export default function InventoryPage() {
                       <RadioGroup
                         onValueChange={field.onChange}
                         defaultValue={field.value}
-                        className="flex space-x-4"
+                        className="grid grid-cols-2 gap-4"
                       >
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="addition" />
-                          </FormControl>
-                          <FormLabel className="font-normal">Entrada</FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="subtraction" />
-                          </FormControl>
-                          <FormLabel className="font-normal">Salida</FormLabel>
-                        </FormItem>
+                        <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                          <RadioGroupItem value="addition" className="sr-only" />
+                          Entrada
+                        </Label>
+                         <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                          <RadioGroupItem value="subtraction" className="sr-only" />
+                          Salida
+                        </Label>
                       </RadioGroup>
                     </FormControl>
                     <FormMessage />
@@ -340,7 +385,7 @@ export default function InventoryPage() {
                   <FormItem>
                     <FormLabel>Cantidad</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0" min="1" {...field} />
+                      <Input type="number" placeholder="0" min="1" inputMode="numeric" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -374,10 +419,12 @@ export default function InventoryPage() {
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => onDialogClose(false)}>Cancelar</Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Ajuste'}
-                </Button>
+                <div className="w-full grid grid-cols-2 gap-2">
+                    <Button type="button" variant="outline" onClick={() => onDialogClose(false)} size="lg">Cancelar</Button>
+                    <Button type="submit" disabled={form.formState.isSubmitting} size="lg">
+                    {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Ajuste'}
+                    </Button>
+                </div>
               </DialogFooter>
             </form>
           </Form>
@@ -386,3 +433,5 @@ export default function InventoryPage() {
     </div>
   );
 }
+
+    
