@@ -152,6 +152,7 @@ export default function InventoryPage() {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setPage(0); // Reset page for new search/initial load
+      setProducts([]); // Clear products before new fetch
       fetchProducts(0, searchQuery);
     }, 500); // Debounce search
 
@@ -305,7 +306,7 @@ export default function InventoryPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" onClick={() => handleAdjustStockClick(product)}>
-                          <ArrowRightLeft className="mr-2" />
+                          <ArrowRightLeft className="mr-2 h-4 w-4" />
                           Ajustar Stock
                         </Button>
                       </TableCell>
@@ -314,7 +315,7 @@ export default function InventoryPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center h-24">
-                      No se encontraron productos que coincidan con la búsqueda.
+                      {searchQuery ? "No se encontraron productos que coincidan con la búsqueda." : "No hay productos en el inventario."}
                     </TableCell>
                   </TableRow>
                 )}
@@ -352,7 +353,7 @@ export default function InventoryPage() {
                                   </Badge>
                               </div>
                               <Button size="sm" onClick={() => handleAdjustStockClick(product)}>
-                                <ArrowRightLeft className="mr-2" />
+                                <ArrowRightLeft className="mr-2 h-4 w-4" />
                                 Ajustar
                               </Button>
                           </div>
@@ -362,14 +363,14 @@ export default function InventoryPage() {
                   <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-48">
                     <div className="flex flex-col items-center gap-1 text-center">
                         <h3 className="text-2xl font-bold tracking-tight">No se encontraron productos</h3>
-                        <p className="text-sm text-muted-foreground">Intenta ajustar la búsqueda.</p>
+                        <p className="text-sm text-muted-foreground">{searchQuery ? "Intenta ajustar la búsqueda." : "Agrega productos para empezar."}</p>
                     </div>
                 </div>
               )}
           </div>
           {/* Load More Section */}
           <div className="mt-6 flex items-center justify-center">
-            {!loading && hasMore && (
+            {!searchQuery && hasMore && (
               <Button onClick={handleLoadMore} disabled={loadingMore}>
                 {loadingMore ? "Cargando..." : "Cargar más"}
               </Button>
@@ -379,93 +380,95 @@ export default function InventoryPage() {
       </Card>
 
       <Dialog open={dialogState.open} onOpenChange={onDialogClose}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle>Ajustar Stock de {dialogState.product?.name}</DialogTitle>
-            <DialogDescription>
-              Selecciona el tipo de movimiento, la cantidad y el motivo. Las existencias actuales son {dialogState.product?.stock}.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6 py-4">
-               <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Tipo de Movimiento</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="grid grid-cols-2 gap-4"
-                      >
-                        <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                          <RadioGroupItem value="addition" className="sr-only" />
-                          Entrada
-                        </Label>
-                         <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                          <RadioGroupItem value="subtraction" className="sr-only" />
-                          Salida
-                        </Label>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        {dialogState.product && (
+            <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+                <DialogTitle>Ajustar Stock de {dialogState.product?.name}</DialogTitle>
+                <DialogDescription>
+                Selecciona el tipo de movimiento, la cantidad y el motivo. Las existencias actuales son {dialogState.product?.stock}.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6 py-4">
+                <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                    <FormItem className="space-y-3">
+                        <FormLabel>Tipo de Movimiento</FormLabel>
+                        <FormControl>
+                        <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="grid grid-cols-2 gap-4"
+                        >
+                            <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 py-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <RadioGroupItem value="addition" className="sr-only" />
+                            Entrada
+                            </Label>
+                            <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 py-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <RadioGroupItem value="subtraction" className="sr-only" />
+                            Salida
+                            </Label>
+                        </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
 
-              <FormField
-                control={form.control}
-                name="quantity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cantidad</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="0" min="1" inputMode="numeric" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                    control={form.control}
+                    name="quantity"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Cantidad</FormLabel>
+                        <FormControl>
+                        <Input type="number" placeholder="0" min="1" inputMode="numeric" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
 
-              <FormField
-                control={form.control}
-                name="reason"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Motivo</FormLabel>
-                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un motivo para el ajuste" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Compra a proveedor">Compra a proveedor</SelectItem>
-                        <SelectItem value="Ajuste por caducidad">Ajuste por caducidad</SelectItem>
-                        <SelectItem value="Producto dañado">Producto dañado</SelectItem>
-                        <SelectItem value="Venta externa">Venta externa</SelectItem>
-                        <SelectItem value="Devolución de cliente">Devolución de cliente</SelectItem>
-                        <SelectItem value="Corrección de inventario">Corrección de inventario</SelectItem>
-                        <SelectItem value="Otro">Otro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <div className="w-full grid grid-cols-2 gap-2">
-                    <Button type="button" variant="outline" onClick={() => onDialogClose(false)} size="lg">Cancelar</Button>
-                    <Button type="submit" disabled={form.formState.isSubmitting} size="lg">
-                    {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Ajuste'}
-                    </Button>
-                </div>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
+                <FormField
+                    control={form.control}
+                    name="reason"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Motivo</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un motivo para el ajuste" />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            <SelectItem value="Compra a proveedor">Compra a proveedor</SelectItem>
+                            <SelectItem value="Ajuste por caducidad">Ajuste por caducidad</SelectItem>
+                            <SelectItem value="Producto dañado">Producto dañado</SelectItem>
+                            <SelectItem value="Venta externa">Venta externa</SelectItem>
+                            <SelectItem value="Devolución de cliente">Devolución de cliente</SelectItem>
+                            <SelectItem value="Corrección de inventario">Corrección de inventario</SelectItem>
+                            <SelectItem value="Otro">Otro</SelectItem>
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <DialogFooter>
+                    <div className="w-full grid grid-cols-2 gap-2">
+                        <Button type="button" variant="outline" onClick={() => onDialogClose(false)} size="lg">Cancelar</Button>
+                        <Button type="submit" disabled={form.formState.isSubmitting} size="lg">
+                        {form.formState.isSubmitting ? 'Guardando...' : 'Guardar Ajuste'}
+                        </Button>
+                    </div>
+                </DialogFooter>
+                </form>
+            </Form>
+            </DialogContent>
+        )}
       </Dialog>
     </div>
   );
