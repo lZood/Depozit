@@ -14,6 +14,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -32,7 +33,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
@@ -216,38 +219,65 @@ export default function OrdersPage() {
       }
   }
 
+  const renderOrderActions = (order: PurchaseOrder) => (
+    <>
+      <DropdownMenuItem asChild>
+        <Link href={`/dashboard/orders/${order.id}`}>Ver Detalles</Link>
+      </DropdownMenuItem>
+      {order.status === 'pending' && (
+        <>
+          <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setReceiveDialogState({open: true, orderId: order.id}) }}>
+            <CheckCircle className="mr-2 h-4 w-4" />
+            Marcar como Recibida
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            onSelect={(e) => { e.preventDefault(); setCancelDialogState({open: true, orderId: order.id}) }}
+            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+          >
+            <XCircle className="mr-2 h-4 w-4" />
+            Cancelar Orden
+          </DropdownMenuItem>
+        </>
+      )}
+    </>
+  );
+
   return (
     <>
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Órdenes de Compra</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground">
             Cree y gestione las órdenes a sus proveedores.
           </p>
         </div>
         <Button asChild>
           <Link href="/dashboard/orders/new">
             <PlusCircle className="mr-2 h-4 w-4" />
-            Crear Orden
+            <span className="sr-only sm:not-sr-only">Crear Orden</span>
           </Link>
         </Button>
       </div>
 
-      <Tabs defaultValue="all" onValueChange={setActiveTab} className="mt-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
         <div className="flex items-center gap-2 pb-4 flex-wrap">
-          <TabsList>
-            <TabsTrigger value="all">Todo</TabsTrigger>
-            <TabsTrigger value="pending">Pendiente</TabsTrigger>
-            <TabsTrigger value="completed">Completada</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelada</TabsTrigger>
-          </TabsList>
-          <div className="ml-auto flex items-center gap-2">
-            <Input
-                placeholder="Buscar por ID o proveedor..."
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="h-9 w-[150px] lg:w-[250px]"
-            />
+          <Input
+              placeholder="Buscar por ID o proveedor..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-9 w-full sm:w-[200px] lg:w-[250px]"
+          />
+          <div className="hidden sm:flex">
+            <TabsList>
+                <TabsTrigger value="all">Todo</TabsTrigger>
+                <TabsTrigger value="pending">Pendiente</TabsTrigger>
+                <TabsTrigger value="completed">Completada</TabsTrigger>
+                <TabsTrigger value="cancelled">Cancelada</TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="flex-1" />
+          <div className="flex items-center gap-2">
              <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -289,12 +319,23 @@ export default function OrdersPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9 gap-1">
                   <Filter className="h-3.5 w-3.5" />
-                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Proveedor
+                  <span className="sr-only sm:not-sr-only">
+                    Filtros
                   </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                 <div className="sm:hidden">
+                    <DropdownMenuLabel>Filtrar por estado</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioGroup value={activeTab} onValueChange={setActiveTab}>
+                        <DropdownMenuRadioItem value="all">Todo</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="pending">Pendiente</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="completed">Completada</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="cancelled">Cancelada</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                    <DropdownMenuSeparator />
+                </div>
                 <DropdownMenuLabel>Filtrar por proveedor</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {suppliers.length > 0 ? (
@@ -320,8 +361,8 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <Card>
-          <CardContent className="pt-6">
+        <Card className="hidden sm:block">
+          <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -376,25 +417,7 @@ export default function OrdersPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/dashboard/orders/${order.id}`}>Ver Detalles</Link>
-                            </DropdownMenuItem>
-                            {order.status === 'pending' && (
-                              <>
-                                <DropdownMenuItem onSelect={() => setReceiveDialogState({open: true, orderId: order.id})}>
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                  Marcar como Recibida
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                  onSelect={() => setCancelDialogState({open: true, orderId: order.id})}
-                                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                >
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Cancelar Orden
-                                </DropdownMenuItem>
-                              </>
-                            )}
+                            {renderOrderActions(order)}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -411,6 +434,59 @@ export default function OrdersPage() {
             </Table>
           </CardContent>
         </Card>
+
+        <div className="grid gap-4 sm:hidden">
+             {loading ? (
+                [...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full" />)
+            ) : filteredOrders.length > 0 ? (
+                filteredOrders.map(order => (
+                    <Card key={order.id}>
+                        <CardHeader className="p-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <CardTitle className="text-base">
+                                        <Link href={`/dashboard/orders/${order.id}`} className="hover:underline">
+                                            Orden #...{order.id.slice(-6)}
+                                        </Link>
+                                    </CardTitle>
+                                    <CardDescription>{format(new Date(order.created_at), "d MMM, yyyy", { locale: es })}</CardDescription>
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 -mt-2 -mr-2">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                        {renderOrderActions(order)}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                            <div className="font-medium text-sm">{order.suppliers?.name || "N/A"}</div>
+                            <div className="text-xs text-muted-foreground">Proveedor</div>
+                        </CardContent>
+                        <CardFooter className="flex justify-between items-center bg-muted/50 p-4">
+                            <Badge variant={getStatusVariant(order.status)}>
+                                {getStatusText(order.status)}
+                            </Badge>
+                            <div className="font-bold">
+                                {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(order.total_amount || 0)}
+                            </div>
+                        </CardFooter>
+                    </Card>
+                ))
+            ) : (
+                 <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm h-48">
+                    <div className="flex flex-col items-center gap-1 text-center">
+                        <h3 className="text-2xl font-bold tracking-tight">No se encontraron órdenes</h3>
+                        <p className="text-sm text-muted-foreground">Intenta ajustar los filtros de búsqueda.</p>
+                    </div>
+                </div>
+            )}
+        </div>
       </Tabs>
 
       <AlertDialog open={receiveDialogState.open} onOpenChange={(open) => setReceiveDialogState({ ...receiveDialogState, open })}>

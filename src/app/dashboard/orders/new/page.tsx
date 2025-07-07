@@ -4,7 +4,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Search, Trash2 } from "lucide-react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -18,7 +18,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 
 type Supplier = {
   id: string;
@@ -35,6 +34,7 @@ type Product = {
 const poItemSchema = z.object({
   product_id: z.string(),
   name: z.string(),
+  sku: z.string().optional(),
   quantity: z.coerce.number().min(1, "La cantidad debe ser al menos 1."),
   cost_price: z.coerce.number().min(0, "El costo no puede ser negativo."),
 });
@@ -115,6 +115,7 @@ export default function NewOrderPage() {
     append({
       product_id: product.id,
       name: product.name,
+      sku: product.sku || undefined,
       quantity: 1,
       cost_price: product.cost_price || 0,
     });
@@ -165,8 +166,8 @@ export default function NewOrderPage() {
           </Button>
         </div>
       </div>
-      <form onSubmit={(e) => e.preventDefault()} className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
-        <div className="grid auto-rows-max items-start gap-4 md:col-span-2 lg:col-span-3">
+      <form onSubmit={(e) => e.preventDefault()} className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+        <div className="grid auto-rows-max items-start gap-4 lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle>Productos</CardTitle>
@@ -201,9 +202,9 @@ export default function NewOrderPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Producto</TableHead>
-                    <TableHead className="w-[100px]">Cantidad</TableHead>
-                    <TableHead className="w-[120px]">Costo Unit.</TableHead>
-                    <TableHead className="w-[120px] text-right">Subtotal</TableHead>
+                    <TableHead className="w-[100px] hidden sm:table-cell">Cantidad</TableHead>
+                    <TableHead className="w-[120px] hidden sm:table-cell">Costo Unit.</TableHead>
+                    <TableHead className="w-[120px] hidden sm:table-cell text-right">Subtotal</TableHead>
                     <TableHead className="w-[50px]"><span className="sr-only">Eliminar</span></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -214,25 +215,54 @@ export default function NewOrderPage() {
                       const subtotal = (Number(currentItem?.quantity) || 0) * (Number(currentItem?.cost_price) || 0);
                       return (
                       <TableRow key={field.id}>
-                        <TableCell className="font-medium">{field.name}</TableCell>
-                        <TableCell>
+                        <TableCell className="font-medium">
+                          <p>{field.name}</p>
+                          <p className="text-xs text-muted-foreground">SKU: {field.sku || 'N/A'}</p>
+                          <div className="grid grid-cols-2 gap-2 mt-2 sm:hidden">
+                            <div>
+                                <Label htmlFor={`item-qty-${index}`} className="text-xs">Cant.</Label>
+                                <Input
+                                    id={`item-qty-${index}`}
+                                    type="number"
+                                    min="1"
+                                    {...form.register(`items.${index}.quantity`)}
+                                    className="h-8"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor={`item-cost-${index}`} className="text-xs">Costo</Label>
+                                <Input
+                                    id={`item-cost-${index}`}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    {...form.register(`items.${index}.cost_price`)}
+                                    className="h-8"
+                                />
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm font-bold sm:hidden">
+                            Subtotal: ${subtotal.toFixed(2)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           <Input
                             type="number"
                             min="1"
                             {...form.register(`items.${index}.quantity`)}
-                            className="h-8"
+                            className="h-8 w-24"
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           <Input
                             type="number"
                             step="0.01"
                             min="0"
                             {...form.register(`items.${index}.cost_price`)}
-                            className="h-8"
+                            className="h-8 w-28"
                           />
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="hidden sm:table-cell text-right">
                           ${subtotal.toFixed(2)}
                         </TableCell>
                         <TableCell>
