@@ -14,6 +14,9 @@ import {
   UserX,
   User,
   Star,
+  LayoutGrid,
+  Grid2X2,
+  List,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -47,6 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 type Product = {
   id: string;
@@ -90,6 +94,7 @@ export default function SellPage() {
 
   const [featuredProducts, setFeaturedProducts] = React.useState<Product[]>([]);
   const [loadingFeatured, setLoadingFeatured] = React.useState(true);
+  const [viewMode, setViewMode] = React.useState<'large' | 'medium' | 'list'>('large');
 
   const supabase = createClient();
   const { toast } = useToast();
@@ -341,10 +346,23 @@ export default function SellPage() {
                 </div>
               <Separator className="my-4" />
                 <div className="space-y-2 flex flex-col flex-1">
-                    <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                        <Star className="h-4 w-4" />
-                        Acceso Rápido
-                    </h3>
+                    <div className="flex justify-between items-center">
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                            <Star className="h-4 w-4" />
+                            Acceso Rápido
+                        </h3>
+                         <div className="flex items-center gap-1">
+                            <Button variant={viewMode === 'large' ? 'secondary' : 'ghost'} size="icon" className="h-7 w-7" onClick={() => setViewMode('large')}>
+                                <LayoutGrid className="h-4 w-4" />
+                            </Button>
+                            <Button variant={viewMode === 'medium' ? 'secondary' : 'ghost'} size="icon" className="h-7 w-7" onClick={() => setViewMode('medium')}>
+                                <Grid2X2 className="h-4 w-4" />
+                            </Button>
+                            <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" className="h-7 w-7" onClick={() => setViewMode('list')}>
+                                <List className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
                     {loadingFeatured ? (
                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
@@ -352,25 +370,59 @@ export default function SellPage() {
                     ) : (
                         <ScrollArea className="flex-1">
                             {featuredProducts.length > 0 ? (
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pr-4">
+                                <div className={cn(
+                                    "pr-4",
+                                    viewMode === 'list' && "flex flex-col gap-1",
+                                    viewMode === 'large' && "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4",
+                                    viewMode === 'medium' && "grid grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3",
+                                )}>
                                 {featuredProducts.map((product) => (
-                                    <Button
-                                    key={product.id}
-                                    variant="outline"
-                                    className="h-auto aspect-square flex flex-col justify-center gap-2 p-2"
-                                    onClick={() => addToCart(product)}
-                                    disabled={product.stock < 1}
-                                    >
-                                    <Image
-                                        alt={product.name}
-                                        className="aspect-square rounded-md object-cover"
-                                        height="64"
-                                        src={product.image_url || `https://placehold.co/64x64.png`}
-                                        width="64"
-                                        data-ai-hint="product photo"
-                                    />
-                                    <p className="text-xs text-center font-medium line-clamp-2">{product.name}</p>
-                                    </Button>
+                                    viewMode === 'list' ? (
+                                        <Button 
+                                            key={product.id} 
+                                            variant="ghost" 
+                                            className="w-full justify-start h-auto p-2 text-left"
+                                            onClick={() => addToCart(product)}
+                                            disabled={product.stock < 1}
+                                        >
+                                            <div className="flex justify-between w-full items-center">
+                                                <div>
+                                                    <p className="font-semibold">{product.name}</p>
+                                                </div>
+                                                <p className="font-bold text-base">${product.sale_price.toFixed(2)}</p>
+                                            </div>
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            key={product.id}
+                                            variant="outline"
+                                            className={cn(
+                                                "relative h-auto aspect-square p-0 overflow-hidden group focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                                                { "text-xs": viewMode === 'medium' }
+                                            )}
+                                            onClick={() => addToCart(product)}
+                                            disabled={product.stock < 1}
+                                        >
+                                            <Image
+                                                alt={product.name}
+                                                src={product.image_url || `https://placehold.co/128x128.png`}
+                                                fill
+                                                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 15vw"
+                                                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                                                data-ai-hint="product photo"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                                            <div className="absolute bottom-0 left-0 right-0 p-2 text-white text-left">
+                                                <p className={cn("font-bold truncate", viewMode === 'large' ? 'text-sm' : 'text-xs')}>{product.name}</p>
+                                                <p className={cn("font-semibold", viewMode === 'large' ? 'text-base' : 'text-sm')}>${product.sale_price.toFixed(2)}</p>
+                                            </div>
+                                            {product.stock < 1 && (
+                                                <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                                                    <span className="font-bold text-destructive">SIN STOCK</span>
+                                                </div>
+                                            )}
+                                        </Button>
+                                    )
                                 ))}
                                 </div>
                             ) : (
@@ -566,3 +618,5 @@ export default function SellPage() {
     </>
   )
 }
+
+    
