@@ -10,14 +10,14 @@ import { z } from "zod";
 import {
   MoreHorizontal,
   PlusCircle,
-  Store,
+  KeyRound,
+  Trash2,
 } from "lucide-react";
 
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -49,6 +49,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DialogTrigger
 } from "@/components/ui/dialog";
 import {
     AlertDialog,
@@ -88,6 +89,15 @@ const newUserFormSchema = z.object({
 });
 type NewUserFormValues = z.infer<typeof newUserFormSchema>;
 
+const passwordFormSchema = z.object({
+    password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
+    confirmPassword: z.string(),
+}).refine(data => data.password === data.confirmPassword, {
+    message: "Las contraseñas no coinciden.",
+    path: ["confirmPassword"],
+});
+type PasswordFormValues = z.infer<typeof passwordFormSchema>;
+
 
 const getInitials = (email: string | null) => {
   if (!email) return "??";
@@ -116,7 +126,8 @@ export default function SettingsPage() {
   
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [userToDelete, setUserToDelete] = React.useState<UserWithRole | null>(null);
+  const [passwordDialogOpen, setPasswordDialogOpen] = React.useState(false);
+  const [selectedUser, setSelectedUser] = React.useState<UserWithRole | null>(null);
   
   const supabase = createClient();
   const { toast } = useToast();
@@ -125,6 +136,12 @@ export default function SettingsPage() {
     resolver: zodResolver(newUserFormSchema),
     defaultValues: { email: "", password: "", role: "employee" },
   });
+
+  const passwordForm = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordFormSchema),
+    defaultValues: { password: "", confirmPassword: "" },
+  });
+
 
   const fetchUsers = React.useCallback(async () => {
     setLoading(true);
@@ -190,16 +207,40 @@ export default function SettingsPage() {
     setIsSubmitting(false);
   }
 
+  const handlePasswordChangeClick = (user: UserWithRole) => {
+    setSelectedUser(user);
+    passwordForm.reset();
+    setPasswordDialogOpen(true);
+  };
+  
   const handleDeleteClick = (user: UserWithRole) => {
-    setUserToDelete(user);
+    setSelectedUser(user);
     setDeleteDialogOpen(true);
   };
   
-  const confirmDelete = async () => {
-    if (!userToDelete) return;
+  const onPasswordChangeSubmit = async (values: PasswordFormValues) => {
+    if (!selectedUser) return;
+    setIsSubmitting(true);
     
-    const { error } = await supabase.rpc('delete_app_user', {
-        p_user_id_to_delete: userToDelete.id
+    const { error } = await supabase.rpc('change_user_password', {
+        user_id: selectedUser.id,
+        new_password: values.password
+    });
+
+    if (error) {
+        toast({ title: "Error al cambiar contraseña", description: error.message, variant: "destructive" });
+    } else {
+        toast({ title: "Contraseña actualizada", description: `La contraseña para ${selectedUser.email} ha sido cambiada.` });
+        setPasswordDialogOpen(false);
+    }
+    setIsSubmitting(false);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedUser) return;
+    
+    const { error } = await supabase.rpc('delete_other_user', {
+        user_id_to_delete: selectedUser.id
     });
 
     if (error) {
@@ -209,7 +250,7 @@ export default function SettingsPage() {
         await fetchUsers();
     }
     setDeleteDialogOpen(false);
-    setUserToDelete(null);
+    setSelectedUser(null);
   };
 
   const handleSaveSettings = () => {
@@ -303,9 +344,19 @@ export default function SettingsPage() {
                                           </DropdownMenuSubContent>
                                       </DropdownMenuSub>
                                       <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
-                                          Eliminar Usuario
-                                      </DropdownMenuItem>
+                                      <DropdownMenuSub>
+                                          <DropdownMenuSubTrigger>Seguridad</DropdownMenuSubTrigger>
+                                          <DropdownMenuSubContent>
+                                              <DropdownMenuItem onClick={() => handlePasswordChangeClick(user)}>
+                                                  <KeyRound className="mr-2 h-4 w-4" />
+                                                  Cambiar Contraseña
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                                  <Trash2 className="mr-2 h-4 w-4" />
+                                                  Eliminar Usuario
+                                              </DropdownMenuItem>
+                                          </DropdownMenuSubContent>
+                                      </DropdownMenuSub>
                                   </DropdownMenuContent>
                               </DropdownMenu>
                           )}
@@ -361,9 +412,19 @@ export default function SettingsPage() {
                                                 </DropdownMenuSubContent>
                                             </DropdownMenuSub>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
-                                                Eliminar Usuario
-                                            </DropdownMenuItem>
+                                            <DropdownMenuSub>
+                                                <DropdownMenuSubTrigger>Seguridad</DropdownMenuSubTrigger>
+                                                <DropdownMenuSubContent>
+                                                    <DropdownMenuItem onClick={() => handlePasswordChangeClick(user)}>
+                                                        <KeyRound className="mr-2 h-4 w-4" />
+                                                        Cambiar Contraseña
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Eliminar Usuario
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuSubContent>
+                                            </DropdownMenuSub>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 )}
@@ -477,12 +538,60 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
       
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Cambiar Contraseña</DialogTitle>
+                <DialogDescription>
+                    Establezca una nueva contraseña para {selectedUser?.email}.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...passwordForm}>
+                <form onSubmit={passwordForm.handleSubmit(onPasswordChangeSubmit)} className="space-y-4">
+                    <FormField
+                        control={passwordForm.control}
+                        name="password"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Nueva Contraseña</FormLabel>
+                                <FormControl>
+                                    <Input type="password" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={passwordForm.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Confirmar Nueva Contraseña</FormLabel>
+                                <FormControl>
+                                    <Input type="password" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancelar</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? "Guardando..." : "Guardar Contraseña"}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
+      
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Esto eliminará permanentemente la cuenta del usuario
+                    Esta acción no se puede deshacer. Esto eliminará permanentemente la cuenta de
+                    <span className="font-bold"> {selectedUser?.email} </span>
                     y todos sus datos asociados.
                 </AlertDialogDescription>
             </AlertDialogHeader>
