@@ -18,9 +18,9 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -220,38 +220,41 @@ export default function SettingsPage() {
   };
   
   const onPasswordChangeSubmit = async (values: PasswordFormValues) => {
-    if (!selectedUser) return;
-    setIsSubmitting(true);
-    
-    const { error } = await supabase.rpc('change_user_password', {
-        user_id: selectedUser.id,
-        new_password: values.password
-    });
+      if (!selectedUser) return;
+      setIsSubmitting(true);
 
-    if (error) {
-        toast({ title: "Error al cambiar contraseña", description: error.message, variant: "destructive" });
-    } else {
-        toast({ title: "Contraseña actualizada", description: `La contraseña para ${selectedUser.email} ha sido cambiada.` });
-        setPasswordDialogOpen(false);
-    }
-    setIsSubmitting(false);
+      const response = await fetch(`/api/users/${selectedUser.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: values.password }),
+      });
+
+      if (!response.ok) {
+          const { error } = await response.json();
+          toast({ title: "Error al cambiar contraseña", description: error || 'Ocurrió un error inesperado.', variant: "destructive" });
+      } else {
+          toast({ title: "Contraseña actualizada", description: `La contraseña para ${selectedUser.email} ha sido cambiada.` });
+          setPasswordDialogOpen(false);
+      }
+      setIsSubmitting(false);
   };
 
   const confirmDelete = async () => {
-    if (!selectedUser) return;
-    
-    const { error } = await supabase.rpc('delete_other_user', {
-        user_id_to_delete: selectedUser.id
-    });
+      if (!selectedUser) return;
+      
+      const response = await fetch(`/api/users/${selectedUser.id}`, {
+          method: 'DELETE',
+      });
 
-    if (error) {
-        toast({ title: "Error al eliminar usuario", description: error.message, variant: "destructive" });
-    } else {
-        toast({ title: "Usuario Eliminado", description: "El usuario ha sido eliminado correctamente."});
-        await fetchUsers();
-    }
-    setDeleteDialogOpen(false);
-    setSelectedUser(null);
+      if (!response.ok) {
+          const { error } = await response.json();
+          toast({ title: "Error al eliminar usuario", description: error || 'Ocurrió un error inesperado.', variant: "destructive" });
+      } else {
+          toast({ title: "Usuario Eliminado", description: "El usuario ha sido eliminado correctamente."});
+          await fetchUsers();
+      }
+      setDeleteDialogOpen(false);
+      setSelectedUser(null);
   };
 
   const handleSaveSettings = () => {
