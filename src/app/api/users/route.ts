@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       },
     });
 
+    // Step 1: Create the user in the auth schema
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
@@ -58,18 +59,19 @@ export async function POST(request: Request) {
     if (!newUser || !newUser.user) {
          return NextResponse.json({ error: "Could not create user account." }, { status: 500 });
     }
-
-    // FIX: Use the supabaseAdmin client to insert the profile, bypassing RLS.
-    // AND FIX: Correctly access the user's ID from newUser.user.id
+    
+    // Step 2: Update the role in the automatically created profile
+    // Supabase automatically creates a profile, so we just need to update it.
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert({ id: newUser.user.id, role: role });
+      .update({ role: role })
+      .eq('id', newUser.user.id);
 
     if (profileError) {
-      console.error("Error creating profile:", profileError.message);
-      // If profile creation fails, it's best to delete the auth user to avoid orphans
+      console.error("Error updating profile:", profileError.message);
+      // If profile update fails, delete the auth user to avoid orphans
       await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-      return NextResponse.json({ error: 'Failed to create user profile.' }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to set user role in profile.' }, { status: 500 });
     }
 
     return NextResponse.json({ message: 'User created successfully', user: newUser.user });
