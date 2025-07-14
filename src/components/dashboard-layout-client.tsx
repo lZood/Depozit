@@ -19,6 +19,7 @@ import {
   LoaderCircle,
   Shield,
   Briefcase,
+  LifeBuoy,
 } from "lucide-react";
 import * as React from "react";
 
@@ -126,6 +127,7 @@ export default function DashboardLayoutClient({
     { href: "/dashboard/reports", icon: LineChart, label: "Reportes", roles: ['admin'] },
     { href: "/dashboard/customers", icon: Users, label: "Clientes", roles: ['admin', 'employee'] },
     { href: "/dashboard/suppliers", icon: Building, label: "Proveedores", roles: ['admin'] },
+    { href: "/dashboard/support", icon: LifeBuoy, label: "Soporte", roles: ['admin', 'employee'] },
   ];
 
   const settingsNav = {
@@ -333,7 +335,7 @@ export default function DashboardLayoutClient({
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {showSettings && <DropdownMenuItem asChild><Link href="/dashboard/settings">Configuración</Link></DropdownMenuItem>}
-              <DropdownMenuItem>Soporte</DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/dashboard/support">Soporte</Link></DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 Cerrar sesión
