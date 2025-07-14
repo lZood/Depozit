@@ -20,7 +20,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -50,7 +49,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger
 } from "@/components/ui/dialog";
 import {
     AlertDialog,
@@ -62,19 +60,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 type UserWithRole = {
@@ -105,25 +96,11 @@ const getInitials = (email: string | null) => {
   return email.substring(0, 2).toUpperCase();
 };
 
-const timezones = [
-  { value: "America/Mexico_City", label: "Ciudad de México (GMT-6)" },
-  { value: "America/Cancun", label: "Cancún (GMT-5)" },
-  { value: "America/Tijuana", label: "Tijuana (GMT-7)" },
-  { value: "America/Mazatlan", label: "Mazatlán (GMT-7)" },
-  { value: "America/Bogota", label: "Bogotá (GMT-5)" },
-  { value: "America/Buenos_Aires", label: "Buenos Aires (GMT-3)" },
-  { value: "America/Santiago", label: "Santiago (GMT-4)" },
-  { value: "America/Caracas", label: "Caracas (GMT-4)" },
-  { value: "America/Lima", label: "Lima (GMT-5)" },
-  { value: "America/La_Paz", label: "La Paz (GMT-4)" },
-];
-
 export default function SettingsPage() {
   const [users, setUsers] = React.useState<UserWithRole[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [currentUser, setCurrentUser] = React.useState<{ id: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [timezone, setTimezone] = React.useState("America/Mazatlan");
   
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -146,22 +123,15 @@ export default function SettingsPage() {
 
   const fetchUsers = React.useCallback(async () => {
     setLoading(true);
-
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if(userError) {
         toast({ title: "Error", description: "No se pudo obtener el usuario actual.", variant: "destructive" });
     } else {
         setCurrentUser(userData.user);
     }
-
     const { data, error } = await supabase.rpc("get_users_with_roles");
-
     if (error) {
-      toast({
-        title: "Error al cargar usuarios",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error al cargar usuarios", description: error.message, variant: "destructive" });
     } else {
       setUsers(data as UserWithRole[]);
     }
@@ -175,12 +145,7 @@ export default function SettingsPage() {
   const handleRoleChange = async (userId: string, newRole: "admin" | "employee") => {
     const originalUsers = [...users];
     setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
-
-    const { error } = await supabase.rpc("update_user_role", {
-      p_user_id: userId,
-      p_new_role: newRole,
-    });
-
+    const { error } = await supabase.rpc("update_user_role", { p_user_id: userId, p_new_role: newRole });
     if (error) {
       toast({ title: "Error al actualizar rol", description: error.message, variant: "destructive" });
       setUsers(originalUsers);
@@ -191,21 +156,26 @@ export default function SettingsPage() {
 
   async function onCreateUserSubmit(values: NewUserFormValues) {
     setIsSubmitting(true);
-    const { error } = await supabase.rpc('create_new_user', {
-        p_email: values.email,
-        p_password: values.password,
-        p_role: values.role
-    });
-
-    if (error) {
-        toast({ title: "Error al crear usuario", description: error.message, variant: "destructive" });
-    } else {
+    try {
+        const response = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(values),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Ocurrió un error desconocido.');
+        }
         toast({ title: "Usuario creado", description: "El nuevo usuario ha sido agregado." });
         setCreateDialogOpen(false);
         newUserForm.reset();
         await fetchUsers();
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Error al crear usuario.';
+        toast({ title: "Error al crear usuario", description: errorMessage, variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   }
 
   const handlePasswordChangeClick = (user: UserWithRole) => {
@@ -222,19 +192,16 @@ export default function SettingsPage() {
   const onPasswordChangeSubmit = async (values: PasswordFormValues) => {
     if (!selectedUser) return;
     setIsSubmitting(true);
-
     try {
         const response = await fetch(`/api/users/${selectedUser.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password: values.password }),
         });
-
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Error inesperado en el servidor.' }));
+            const errorData = await response.json().catch(() => ({ error: 'Error inesperado.' }));
             throw new Error(errorData.error || `Error ${response.status}`);
         }
-        
         toast({ title: "Contraseña actualizada", description: `La contraseña para ${selectedUser.email} ha sido cambiada.` });
         setPasswordDialogOpen(false);
     } catch (error) {
@@ -247,18 +214,15 @@ export default function SettingsPage() {
 
   const confirmDelete = async () => {
     if (!selectedUser) return;
-    
     try {
         const response = await fetch(`/api/users/${selectedUser.id}`, {
             method: 'DELETE',
         });
-
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'Error inesperado en el servidor.' }));
+            const errorData = await response.json().catch(() => ({ error: 'Error inesperado.' }));
             throw new Error(errorData.error || `Error ${response.status}`);
         }
-
-        toast({ title: "Usuario Eliminado", description: "El usuario ha sido eliminado correctamente."});
+        toast({ title: "Usuario Eliminado", description: "El usuario ha sido eliminado."});
         await fetchUsers();
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
@@ -269,14 +233,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveSettings = () => {
-    // In a real app, you would save this to localStorage or a database
-    // For now, we'll just show a confirmation toast
-    toast({
-        title: "Ajustes Guardados",
-        description: `La zona horaria se ha establecido a ${timezone}. Este cambio se aplicará en futuros reportes.`,
-    });
-  };
 
   return (
     <>
@@ -287,7 +243,7 @@ export default function SettingsPage() {
                 <div>
                     <CardTitle>Gestión de Usuarios</CardTitle>
                     <CardDescription>
-                        Administra los roles y permisos de los usuarios de la aplicación.
+                        Administra los roles y permisos de los usuarios.
                     </CardDescription>
                 </div>
                 <div className="ml-auto">
@@ -360,19 +316,14 @@ export default function SettingsPage() {
                                           </DropdownMenuSubContent>
                                       </DropdownMenuSub>
                                       <DropdownMenuSeparator />
-                                      <DropdownMenuSub>
-                                          <DropdownMenuSubTrigger>Seguridad</DropdownMenuSubTrigger>
-                                          <DropdownMenuSubContent>
-                                              <DropdownMenuItem onClick={() => handlePasswordChangeClick(user)}>
-                                                  <KeyRound className="mr-2 h-4 w-4" />
-                                                  Cambiar Contraseña
-                                              </DropdownMenuItem>
-                                              <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
-                                                  <Trash2 className="mr-2 h-4 w-4" />
-                                                  Eliminar Usuario
-                                              </DropdownMenuItem>
-                                          </DropdownMenuSubContent>
-                                      </DropdownMenuSub>
+                                      <DropdownMenuItem onClick={() => handlePasswordChangeClick(user)}>
+                                          <KeyRound className="mr-2 h-4 w-4" />
+                                          Cambiar Contraseña
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                          <Trash2 className="mr-2 h-4 w-4" />
+                                          Eliminar Usuario
+                                      </DropdownMenuItem>
                                   </DropdownMenuContent>
                               </DropdownMenu>
                           )}
@@ -428,19 +379,14 @@ export default function SettingsPage() {
                                                 </DropdownMenuSubContent>
                                             </DropdownMenuSub>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuSub>
-                                                <DropdownMenuSubTrigger>Seguridad</DropdownMenuSubTrigger>
-                                                <DropdownMenuSubContent>
-                                                    <DropdownMenuItem onClick={() => handlePasswordChangeClick(user)}>
-                                                        <KeyRound className="mr-2 h-4 w-4" />
-                                                        Cambiar Contraseña
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Eliminar Usuario
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuSubContent>
-                                            </DropdownMenuSub>
+                                            <DropdownMenuItem onClick={() => handlePasswordChangeClick(user)}>
+                                                <KeyRound className="mr-2 h-4 w-4" />
+                                                Cambiar Contraseña
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleDeleteClick(user)} className="text-red-600 focus:text-red-600 focus:bg-red-50">
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Eliminar Usuario
+                                            </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 )}
@@ -455,35 +401,6 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-            <CardHeader>
-                <CardTitle>Configuración de la Tienda</CardTitle>
-                <CardDescription>
-                    Ajustes generales de la aplicación como la zona horaria para los reportes.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="grid gap-4 sm:max-w-sm">
-                    <div className="grid gap-2">
-                        <Label htmlFor="timezone">Zona Horaria</Label>
-                        <Select value={timezone} onValueChange={setTimezone}>
-                            <SelectTrigger id="timezone">
-                                <SelectValue placeholder="Seleccionar zona horaria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {timezones.map(tz => (
-                                    <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-            </CardContent>
-            <CardFooter className="border-t px-6 py-4">
-                <Button onClick={handleSaveSettings}>Guardar Cambios</Button>
-            </CardFooter>
-        </Card>
       </div>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -491,7 +408,7 @@ export default function SettingsPage() {
             <DialogHeader>
                 <DialogTitle>Crear Nuevo Usuario</DialogTitle>
                 <DialogDescription>
-                    Complete el formulario para agregar un nuevo miembro al equipo.
+                    Complete el formulario para agregar un nuevo miembro.
                 </DialogDescription>
             </DialogHeader>
             <Form {...newUserForm}>
@@ -606,9 +523,8 @@ export default function SettingsPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Esto eliminará permanentemente la cuenta de
-                    <span className="font-bold"> {selectedUser?.email} </span>
-                    y todos sus datos asociados.
+                    Esta acción no se puede deshacer. Esto eliminará la cuenta de
+                    <span className="font-bold"> {selectedUser?.email} </span>.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

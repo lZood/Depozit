@@ -1,10 +1,8 @@
-
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-// Corrected the environment variable name from SUPABASE_SERVICE_ROLE_KEY
 const serviceRoleKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE;
 
 // This function handles PATCH requests to update a user's password.
@@ -41,7 +39,7 @@ export async function PATCH(
   const userIdToUpdate = params.userId;
 
   if (!password || password.length < 6) {
-    return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+    return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres' }, { status: 400 });
   }
 
   try {
@@ -102,7 +100,7 @@ export async function DELETE(
     const userIdToDelete = params.userId;
 
     if (userIdToDelete === user.id) {
-        return NextResponse.json({ error: "You cannot delete your own account." }, { status: 400 });
+        return NextResponse.json({ error: "No puede eliminar su propia cuenta." }, { status: 400 });
     }
 
     try {
