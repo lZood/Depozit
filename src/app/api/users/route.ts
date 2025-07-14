@@ -60,6 +60,7 @@ export async function POST(request: Request) {
     }
 
     // FIX: Use the supabaseAdmin client to insert the profile, bypassing RLS.
+    // AND FIX: Correctly access the user's ID from newUser.user.id
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({ id: newUser.user.id, role: role });
