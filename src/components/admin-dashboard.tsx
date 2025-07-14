@@ -7,6 +7,7 @@ import {
   TrendingUp,
   AlertCircle,
   BarChart,
+  ArrowRight,
 } from "lucide-react"
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/table"
 import { SalesChart } from "@/components/sales-chart"
 import { createClient } from "@/lib/supabase/server"
+import { Button } from "./ui/button";
 
 const getInitials = (name: string) => {
   if (!name || name === 'Cliente General') return "CG";
@@ -82,66 +84,31 @@ export default async function AdminDashboard() {
   const lowStockProducts = lowStockProductsRes.data;
   const topProducts = topProductsRes.data;
 
+  const summaryCards = [
+    { title: "Ventas de Hoy", value: formatCurrency(salesSummary?.total_sales), description: "Ventas totales del día", icon: DollarSign },
+    { title: "Ganancia Bruta", value: formatCurrency(salesSummary?.total_profit), description: "Ganancia estimada del día", icon: TrendingUp },
+    { title: "Transacciones", value: `+${formatNumber(salesSummary?.transaction_count)}`, description: "Número de ventas realizadas", icon: CreditCard },
+    { title: "Venta Promedio", value: formatCurrency(salesSummary?.average_sale), description: "Valor promedio por transacción", icon: BarChart },
+  ];
+
   return (
-    <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Ventas de Hoy
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(salesSummary?.total_sales)}</div>
-            <p className="text-xs text-muted-foreground">
-              Ventas totales del día de hoy
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Ganancia Bruta de Hoy
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(salesSummary?.total_profit)}</div>
-            <p className="text-xs text-muted-foreground">
-              Ganancia estimada del día
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Transacciones de Hoy</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{formatNumber(salesSummary?.transaction_count)}</div>
-            <p className="text-xs text-muted-foreground">
-              Número de ventas realizadas
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Venta Promedio
-            </CardTitle>
-            <BarChart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(salesSummary?.average_sale)}</div>
-            <p className="text-xs text-muted-foreground">
-              Valor promedio por transacción
-            </p>
-          </CardContent>
-        </Card>
+    <div className="grid auto-rows-max items-start gap-4 md:gap-8">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {summaryCards.map((card, index) => (
+          <Card key={index}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+              <card.icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{card.value}</div>
+              <p className="text-xs text-muted-foreground">{card.description}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+        <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle>Resumen de Ventas (Últimos 7 días)</CardTitle>
           </CardHeader>
@@ -149,7 +116,7 @@ export default async function AdminDashboard() {
             <SalesChart data={salesOverTime || []} />
           </CardContent>
         </Card>
-        <Card className="col-span-3">
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Ventas Recientes</CardTitle>
             <CardDescription>
@@ -176,21 +143,20 @@ export default async function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-yellow-500" />
-                Alertas de Inventario
-              </div>
-            </CardTitle>
-            <Link
-              href="/dashboard/inventory"
-              className="text-sm text-primary hover:underline"
-            >
-              Ver Todo
-            </Link>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-yellow-500" />
+                    Alertas de Inventario
+                </CardTitle>
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href="/dashboard/inventory">
+                        Ver Todo <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <Table>
@@ -203,12 +169,12 @@ export default async function AdminDashboard() {
               <TableBody>
                 {lowStockProducts && lowStockProducts.length > 0 ? lowStockProducts.map(product => (
                   <TableRow key={product.name}>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell className="text-right"><Badge variant="destructive">{product.stock}</Badge></TableCell>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="text-right"><Badge variant="secondary">{product.stock}</Badge></TableCell>
                   </TableRow>
                 )) : (
                   <TableRow>
-                    <TableCell colSpan={2} className="text-center h-24">No hay productos con bajo inventario.</TableCell>
+                    <TableCell colSpan={2} className="h-24 text-center">No hay productos con bajo inventario.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -216,16 +182,17 @@ export default async function AdminDashboard() {
           </CardContent>
         </Card>
          <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Productos Principales (Últimos 30 días)
-            </CardTitle>
-             <Link
-              href="/dashboard/reports"
-              className="text-sm text-primary hover:underline"
-            >
-              Ver Reporte
-            </Link>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium">
+                Productos Principales (Últimos 30 días)
+                </CardTitle>
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href="/dashboard/reports">
+                        Ver Reporte <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+            </div>
           </CardHeader>
           <CardContent>
              <Table>
@@ -238,12 +205,12 @@ export default async function AdminDashboard() {
               <TableBody>
                 {topProducts && topProducts.length > 0 ? topProducts.map(product => (
                   <TableRow key={product.product_name}>
-                    <TableCell>{product.product_name}</TableCell>
+                    <TableCell className="font-medium">{product.product_name}</TableCell>
                     <TableCell className="text-right">{formatNumber(product.total_quantity)}</TableCell>
                   </TableRow>
                 )) : (
                   <TableRow>
-                    <TableCell colSpan={2} className="text-center h-24">No hay datos de ventas suficientes.</TableCell>
+                    <TableCell colSpan={2} className="h-24 text-center">No hay datos de ventas suficientes.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
