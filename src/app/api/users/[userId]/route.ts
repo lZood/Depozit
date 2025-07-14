@@ -4,7 +4,8 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Corrected the environment variable name from SUPABASE_SERVICE_ROLE_KEY
+const serviceRoleKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE;
 
 // This function handles PATCH requests to update a user's password.
 export async function PATCH(
