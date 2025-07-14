@@ -3,11 +3,21 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 // This function handles PATCH requests to update a user's password.
 export async function PATCH(
   request: Request,
   { params }: { params: { userId: string } }
 ) {
+  if (!supabaseUrl || !serviceRoleKey) {
+    return NextResponse.json(
+      { error: 'Missing Supabase URL or Service Role Key.' },
+      { status: 500 }
+    );
+  }
+
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -33,29 +43,29 @@ export async function PATCH(
     return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
   }
 
-  // Use the admin client to update the user's password
-  // This requires the SUPABASE_SERVICE_ROLE_KEY to be set in the environment variables
-  const supabaseAdmin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
+  try {
+    const supabaseAdmin = createAdminClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
+    });
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(
+      userIdToUpdate,
+      { password: password }
+    );
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-  );
 
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(
-    userIdToUpdate,
-    { password: password }
-  );
+    return NextResponse.json({ message: 'Password updated successfully' });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+    return NextResponse.json({ error: `Server error: ${errorMessage}` }, { status: 500 });
   }
-
-  return NextResponse.json({ message: 'Password updated successfully' });
 }
 
 
@@ -64,6 +74,13 @@ export async function DELETE(
   request: Request,
   { params }: { params: { userId: string } }
 ) {
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json(
+        { error: 'Missing Supabase URL or Service Role Key.' },
+        { status: 500 }
+      );
+    }
+
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -87,22 +104,24 @@ export async function DELETE(
         return NextResponse.json({ error: "You cannot delete your own account." }, { status: 400 });
     }
 
-    const supabaseAdmin = createAdminClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false,
-            },
-        }
-    );
+    try {
+      const supabaseAdmin = createAdminClient(supabaseUrl, serviceRoleKey, {
+          auth: {
+              autoRefreshToken: false,
+              persistSession: false,
+          },
+      });
 
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userIdToDelete);
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userIdToDelete);
 
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ message: 'User deleted successfully' });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      return NextResponse.json({ error: `Server error: ${errorMessage}` }, { status: 500 });
     }
-
-    return NextResponse.json({ message: 'User deleted successfully' });
 }

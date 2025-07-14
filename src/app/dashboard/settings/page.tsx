@@ -220,41 +220,53 @@ export default function SettingsPage() {
   };
   
   const onPasswordChangeSubmit = async (values: PasswordFormValues) => {
-      if (!selectedUser) return;
-      setIsSubmitting(true);
+    if (!selectedUser) return;
+    setIsSubmitting(true);
 
-      const response = await fetch(`/api/users/${selectedUser.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: values.password }),
-      });
+    try {
+        const response = await fetch(`/api/users/${selectedUser.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: values.password }),
+        });
 
-      if (!response.ok) {
-          const { error } = await response.json();
-          toast({ title: "Error al cambiar contraseña", description: error || 'Ocurrió un error inesperado.', variant: "destructive" });
-      } else {
-          toast({ title: "Contraseña actualizada", description: `La contraseña para ${selectedUser.email} ha sido cambiada.` });
-          setPasswordDialogOpen(false);
-      }
-      setIsSubmitting(false);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Error inesperado en el servidor.' }));
+            throw new Error(errorData.error || `Error ${response.status}`);
+        }
+        
+        toast({ title: "Contraseña actualizada", description: `La contraseña para ${selectedUser.email} ha sido cambiada.` });
+        setPasswordDialogOpen(false);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+        toast({ title: "Error al cambiar contraseña", description: errorMessage, variant: "destructive" });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const confirmDelete = async () => {
-      if (!selectedUser) return;
-      
-      const response = await fetch(`/api/users/${selectedUser.id}`, {
-          method: 'DELETE',
-      });
+    if (!selectedUser) return;
+    
+    try {
+        const response = await fetch(`/api/users/${selectedUser.id}`, {
+            method: 'DELETE',
+        });
 
-      if (!response.ok) {
-          const { error } = await response.json();
-          toast({ title: "Error al eliminar usuario", description: error || 'Ocurrió un error inesperado.', variant: "destructive" });
-      } else {
-          toast({ title: "Usuario Eliminado", description: "El usuario ha sido eliminado correctamente."});
-          await fetchUsers();
-      }
-      setDeleteDialogOpen(false);
-      setSelectedUser(null);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Error inesperado en el servidor.' }));
+            throw new Error(errorData.error || `Error ${response.status}`);
+        }
+
+        toast({ title: "Usuario Eliminado", description: "El usuario ha sido eliminado correctamente."});
+        await fetchUsers();
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+        toast({ title: "Error al eliminar usuario", description: errorMessage, variant: "destructive" });
+    } finally {
+        setDeleteDialogOpen(false);
+        setSelectedUser(null);
+    }
   };
 
   const handleSaveSettings = () => {
