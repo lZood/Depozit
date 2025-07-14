@@ -52,7 +52,6 @@ export async function POST(request: Request) {
     
     if (createError) {
         console.error("Error creating user in Supabase Auth:", createError.message);
-        // Clean up user if profile creation fails? For now, just return error.
         return NextResponse.json({ error: createError.message }, { status: 400 });
     }
 
@@ -60,7 +59,8 @@ export async function POST(request: Request) {
          return NextResponse.json({ error: "Could not create user account." }, { status: 500 });
     }
 
-    const { error: profileError } = await supabase
+    // FIX: Use the supabaseAdmin client to insert the profile, bypassing RLS.
+    const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({ id: newUser.user.id, role: role });
 
