@@ -20,6 +20,7 @@ import {
   Shield,
   Briefcase,
   LifeBuoy,
+  BookOpen,
 } from "lucide-react";
 import * as React from "react";
 
@@ -127,6 +128,7 @@ export default function DashboardLayoutClient({
     { href: "/dashboard/reports", icon: LineChart, label: "Reportes", roles: ['admin'] },
     { href: "/dashboard/customers", icon: Users, label: "Clientes", roles: ['admin', 'employee'] },
     { href: "/dashboard/suppliers", icon: Building, label: "Proveedores", roles: ['admin'] },
+    { href: "/dashboard/guide", icon: BookOpen, label: "Guía de Usuario", roles: ['admin', 'employee'] },
     { href: "/dashboard/support", icon: LifeBuoy, label: "Soporte", roles: ['admin', 'employee'] },
   ];
 
