@@ -124,7 +124,6 @@ export default function DashboardLayoutClient({
     { href: "/dashboard/products", icon: Package, label: "Productos", roles: ['admin', 'employee'] },
     { href: "/dashboard/categories", icon: LayoutGrid, label: "Categorías", roles: ['admin', 'employee'] },
     { href: "/dashboard/orders", icon: Truck, label: "Órdenes de Compra", roles: ['admin'] },
-    { href: "/dashboard/inventory", icon: Warehouse, label: "Inventario", roles: ['admin', 'employee'] },
     { href: "/dashboard/reports", icon: LineChart, label: "Reportes", roles: ['admin'] },
     { href: "/dashboard/customers", icon: Users, label: "Clientes", roles: ['admin', 'employee'] },
     { href: "/dashboard/suppliers", icon: Building, label: "Proveedores", roles: ['admin'] },

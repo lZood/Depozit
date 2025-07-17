@@ -9,6 +9,7 @@ import {
   Search,
   Filter,
   Star,
+  ArrowRightLeft,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,6 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Image from "next/image"
+import Link from "next/link"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
@@ -31,6 +33,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { cn } from "@/lib/utils"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const productFormSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio."),
@@ -59,6 +62,17 @@ const defaultFormValues: ProductFormValues = {
   status: 'active',
   image_file: undefined,
 };
+
+const adjustmentFormSchema = z.object({
+  type: z.enum(["addition", "subtraction"], { required_error: "Debe seleccionar un tipo de movimiento." }),
+  quantity: z.coerce.number().int("La cantidad debe ser un número entero.").positive("La cantidad debe ser un número positivo."),
+  reason: z.string().min(1, "Debe seleccionar un motivo."),
+}).refine(data => data.quantity > 0, {
+  message: "La cantidad debe ser mayor que cero.",
+  path: ["quantity"],
+});
+
+type AdjustmentFormValues = z.infer<typeof adjustmentFormSchema>;
 
 type Product = {
   id: string;
@@ -90,8 +104,12 @@ export default function ProductsPage() {
   const [addCategoryDialogOpen, setAddCategoryDialogOpen] = React.useState(false);
   const [productDialogOpen, setProductDialogOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [adjustmentDialogOpen, setAdjustmentDialogOpen] = React.useState(false);
+
   const [productToDelete, setProductToDelete] = React.useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = React.useState<Product | null>(null);
+  const [productToAdjust, setProductToAdjust] = React.useState<Product | null>(null);
+
   const [activeTab, setActiveTab] = React.useState("all");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedCategories, setSelectedCategories] = React.useState<string[]>([]);
@@ -100,9 +118,14 @@ export default function ProductsPage() {
   const supabase = createClient();
   const { toast } = useToast();
 
-  const form = useForm<ProductFormValues>({
+  const productForm = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: defaultFormValues,
+  });
+
+  const adjustmentForm = useForm<AdjustmentFormValues>({
+    resolver: zodResolver(adjustmentFormSchema),
+    defaultValues: { type: "addition", quantity: 1, reason: "Corrección de inventario" },
   });
 
   const fetchProducts = React.useCallback(async () => {
@@ -133,7 +156,6 @@ export default function ProductsPage() {
     }
     setLoading(false);
   }, [supabase, toast, activeTab, searchQuery, selectedCategories]);
-
 
   const fetchCategories = React.useCallback(async () => {
     const { data, error } = await supabase
@@ -254,6 +276,34 @@ export default function ProductsPage() {
       await fetchProducts();
     }
   }
+
+  async function onAdjustmentSubmit(values: AdjustmentFormValues) {
+    if (!productToAdjust) return;
+
+    const quantityChange = values.type === 'addition' ? values.quantity : -values.quantity;
+
+    if (values.type === 'subtraction' && productToAdjust.stock < values.quantity) {
+      adjustmentForm.setError("quantity", {
+        type: "manual",
+        message: `No puedes restar más de las existencias actuales (${productToAdjust.stock}).`,
+      });
+      return;
+    }
+
+    const { error } = await supabase.rpc('handle_stock_adjustment', {
+      p_product_id: productToAdjust.id,
+      p_quantity_change: quantityChange,
+      p_reason: values.reason,
+    });
+
+    if (error) {
+      toast({ title: "Error al ajustar stock", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Éxito", description: `Stock para ${productToAdjust.name} actualizado.` });
+      setAdjustmentDialogOpen(false);
+      await fetchProducts();
+    }
+  }
   
   const handleToggleFeatured = async (product: Product) => {
     const { error } = await supabase
@@ -272,7 +322,7 @@ export default function ProductsPage() {
 
   const handleEditClick = (product: Product) => {
     setEditingProduct(product);
-    form.reset({
+    productForm.reset({
       ...product,
       cost_price: product.cost_price ?? 0,
       description: product.description ?? "",
@@ -282,6 +332,12 @@ export default function ProductsPage() {
     });
     setImagePreview(product.image_url);
     setProductDialogOpen(true);
+  };
+
+  const handleAdjustStockClick = (product: Product) => {
+    setProductToAdjust(product);
+    adjustmentForm.reset();
+    setAdjustmentDialogOpen(true);
   };
   
   const handleDeleteClick = (product: Product) => {
@@ -319,6 +375,12 @@ export default function ProductsPage() {
     setDeleteDialogOpen(false);
     setProductToDelete(null);
   };
+
+  const getStockBadgeVariant = (stock: number): 'destructive' | 'secondary' | 'outline' => {
+    if (stock === 0) return "destructive";
+    if (stock < 10) return "secondary"; 
+    return "outline"; 
+  }
 
   const getStatusVariant = (status: Product['status']) => {
     switch (status) {
@@ -418,7 +480,7 @@ export default function ProductsPage() {
               <DialogTrigger asChild>
                 <Button size="sm" className="h-9 gap-1" onClick={() => {
                   setEditingProduct(null);
-                  form.reset(defaultFormValues);
+                  productForm.reset(defaultFormValues);
                   setImagePreview(null);
                 }}>
                   <PlusCircle className="h-3.5 w-3.5" />
@@ -434,11 +496,11 @@ export default function ProductsPage() {
                     {editingProduct ? "Modifique los detalles de su producto." : "Agregue un nuevo producto a su inventario."}
                   </DialogDescription>
                 </DialogHeader>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onProductSubmit)} className="space-y-4">
+                <Form {...productForm}>
+                  <form onSubmit={productForm.handleSubmit(onProductSubmit)} className="space-y-4">
                      <div className="max-h-[60vh] overflow-y-auto p-1 pr-4 space-y-4">
                       <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="image_file"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-start">
@@ -482,7 +544,7 @@ export default function ProductsPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="name"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-center">
@@ -497,7 +559,7 @@ export default function ProductsPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="sku"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-center">
@@ -512,7 +574,7 @@ export default function ProductsPage() {
                         )}
                       />
                        <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="barcode"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-center">
@@ -527,7 +589,7 @@ export default function ProductsPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="description"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-start">
@@ -542,7 +604,7 @@ export default function ProductsPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="category_id"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-center">
@@ -605,7 +667,7 @@ export default function ProductsPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="stock"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-center">
@@ -620,7 +682,7 @@ export default function ProductsPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="cost_price"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-center">
@@ -635,7 +697,7 @@ export default function ProductsPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="sale_price"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-center">
@@ -650,7 +712,7 @@ export default function ProductsPage() {
                         )}
                       />
                       <FormField
-                        control={form.control}
+                        control={productForm.control}
                         name="status"
                         render={({ field }) => (
                           <FormItem className="grid grid-cols-1 md:grid-cols-4 gap-y-2 md:gap-x-4 md:items-center">
@@ -676,8 +738,8 @@ export default function ProductsPage() {
                     </div>
                     <DialogFooter className="pt-4 border-t">
                       <Button type="button" variant="outline" onClick={() => setProductDialogOpen(false)}>Cancelar</Button>
-                      <Button type="submit" disabled={form.formState.isSubmitting}>
-                        {form.formState.isSubmitting ? "Guardando..." : "Guardar Cambios"}
+                      <Button type="submit" disabled={productForm.formState.isSubmitting}>
+                        {productForm.formState.isSubmitting ? "Guardando..." : "Guardar Cambios"}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -747,7 +809,9 @@ export default function ProductsPage() {
                         />
                       </TableCell>
                       <TableCell className="font-medium">
-                        {product.name}
+                        <Link href={`/dashboard/products/${product.id}/details`} className="hover:underline">
+                          {product.name}
+                        </Link>
                          <div className="text-xs text-muted-foreground block sm:hidden">SKU: {product.sku}</div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
@@ -757,7 +821,7 @@ export default function ProductsPage() {
                         <Badge variant={getStatusVariant(product.status)}>{getStatusText(product.status)}</Badge>
                       </TableCell>
                        <TableCell className="hidden sm:table-cell text-right">
-                        {product.stock}
+                        <Badge variant={getStockBadgeVariant(product.stock)}>{product.stock}</Badge>
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-right">
                         ${product.sale_price.toFixed(2)}
@@ -777,6 +841,10 @@ export default function ProductsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleEditClick(product)}>Editar</DropdownMenuItem>
+                             <DropdownMenuItem onClick={() => handleAdjustStockClick(product)}>
+                                <ArrowRightLeft className="mr-2 h-4 w-4" />
+                                Ajustar Stock
+                              </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleDeleteClick(product)} className="text-red-600 focus:text-red-600 focus:bg-red-50">Eliminar</DropdownMenuItem>
                           </DropdownMenuContent>
@@ -820,6 +888,106 @@ export default function ProductsPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={adjustmentDialogOpen} onOpenChange={setAdjustmentDialogOpen}>
+        {productToAdjust && (
+            <DialogContent className="sm:max-w-[480px]">
+              <DialogHeader>
+                  <DialogTitle>Ajustar Stock de {productToAdjust?.name}</DialogTitle>
+                  <DialogDescription>
+                  Selecciona el tipo de movimiento, la cantidad y el motivo. Las existencias actuales son {productToAdjust?.stock}.
+                  </DialogDescription>
+              </DialogHeader>
+              <Form {...adjustmentForm}>
+                  <form onSubmit={adjustmentForm.handleSubmit(onAdjustmentSubmit)} className="grid gap-6 py-4">
+                  <FormField
+                      control={adjustmentForm.control}
+                      name="type"
+                      render={({ field }) => (
+                      <FormItem className="space-y-3">
+                          <FormLabel>Tipo de Movimiento</FormLabel>
+                          <FormControl>
+                          <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="grid grid-cols-2 gap-4"
+                          >
+                              <FormItem>
+                                  <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 py-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                  <FormControl>
+                                    <RadioGroupItem value="addition" className="sr-only" />
+                                  </FormControl>
+                                  Entrada
+                                  </Label>
+                              </FormItem>
+                              <FormItem>
+                                <Label className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 py-6 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                <FormControl>
+                                  <RadioGroupItem value="subtraction" className="sr-only" />
+                                </FormControl>
+                                Salida
+                                </Label>
+                              </FormItem>
+                          </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                      )}
+                  />
+
+                  <FormField
+                      control={adjustmentForm.control}
+                      name="quantity"
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Cantidad</FormLabel>
+                          <FormControl>
+                          <Input type="number" placeholder="0" min="1" inputMode="numeric" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                      )}
+                  />
+
+                  <FormField
+                      control={adjustmentForm.control}
+                      name="reason"
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Motivo</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                              <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un motivo para el ajuste" />
+                              </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                              <SelectItem value="Compra a proveedor">Compra a proveedor</SelectItem>
+                              <SelectItem value="Ajuste por caducidad">Ajuste por caducidad</SelectItem>
+                              <SelectItem value="Producto dañado">Producto dañado</SelectItem>
+                              <SelectItem value="Venta externa">Venta externa</SelectItem>
+                              <SelectItem value="Devolución de cliente">Devolución de cliente</SelectItem>
+                              <SelectItem value="Corrección de inventario">Corrección de inventario</SelectItem>
+                              <SelectItem value="Otro">Otro</SelectItem>
+                          </SelectContent>
+                          </Select>
+                          <FormMessage />
+                      </FormItem>
+                      )}
+                  />
+                  <DialogFooter>
+                      <div className="w-full grid grid-cols-2 gap-2">
+                          <Button type="button" variant="outline" onClick={() => setAdjustmentDialogOpen(false)} size="lg">Cancelar</Button>
+                          <Button type="submit" disabled={adjustmentForm.formState.isSubmitting} size="lg">
+                          {adjustmentForm.formState.isSubmitting ? 'Guardando...' : 'Guardar Ajuste'}
+                          </Button>
+                      </div>
+                  </DialogFooter>
+                  </form>
+              </Form>
+            </DialogContent>
+        )}
+      </Dialog>
     </div>
   )
 }
